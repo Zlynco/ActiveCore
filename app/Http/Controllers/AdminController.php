@@ -95,42 +95,59 @@ class AdminController extends Controller
         return redirect()->route('admin.user')->with('success', 'User deleted successfully');
     }
 
-    public function editCoach($id)
+    // Controller Method untuk Edit Coach
+public function editCoach($id)
 {
     Log::channel('userlog')->info('Mengambil data coach untuk di-edit.', ['coach_id' => $id]);
+
+    // Cari coach berdasarkan ID, gagal jika tidak ditemukan
     $coach = User::findOrFail($id);
-    $categories = Category::all(); // Ambil semua kategori
+
+    // Ambil semua kategori untuk digunakan dalam form
+    $categories = Category::all();
+
     return view('admin.edit-coach', compact('coach', 'categories'));
 }
 
-
-    public function updateCoach(Request $request, $id)
+// Controller Method untuk Update Coach
+public function updateCoach(Request $request, $id)
 {
     // Validasi data input
     $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email,'.$id,
-        'category_id' => 'required|exists:categories,id', // Pastikan category_id valid
+        'categories' => 'required|array',
+        'categories.*' => 'exists:categories,id',
     ]);
 
     Log::channel('userlog')->info('Proses update coach dimulai.', ['coach_id' => $id]);
     $coach = User::findOrFail($id);
-    $coach->update($request->only(['name', 'email', 'category_id'])); // Hanya ambil field yang diperlukan
+    $coach->update($request->only(['name', 'email']));
+
+    // Sinkronisasi kategori
+    $coach->categories()->sync($request->categories);
 
     Log::channel('userlog')->info('Coach berhasil diupdate.', ['coach_id' => $id]);
     return redirect()->route('admin.user')->with('success', 'Coach updated successfully');
 }
 
 
-    public function deleteCoach($id)
-    {
-        Log::channel('userlog')->info('Menghapus coach.', ['coach_id' => $id]);
-        $coach = User::findOrFail($id);
-        $coach->delete();
+// Controller Method untuk Delete Coach
+public function deleteCoach($id)
+{
+    Log::channel('userlog')->info('Menghapus coach.', ['coach_id' => $id]);
 
-        Log::channel('userlog')->info('Coach berhasil dihapus.', ['coach_id' => $id]);
-        return redirect()->route('admin.user')->with('success', 'Coach deleted successfully');
-    }
+    // Cari coach berdasarkan ID, gagal jika tidak ditemukan
+    $coach = User::findOrFail($id);
+
+    // Hapus coach
+    $coach->delete();
+
+    Log::channel('userlog')->info('Coach berhasil dihapus.', ['coach_id' => $id]);
+
+    return redirect()->route('admin.user')->with('success', 'Coach deleted successfully');
+}
+
     public function approveCoach($id)
     {
         Log::info('Menyetujui coach.', ['coach_id' => $id]);
@@ -167,7 +184,8 @@ class AdminController extends Controller
             $classesQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('day_of_week', 'like', "%{$search}%")
-                    ->orWhere('start_time', 'like', "%{$search}%");
+                    ->orWhere('start_time', 'like', "%{$search}%")
+                    ->orWhere('end_time', 'like', "%{$search}%");
             });
         }
 
@@ -179,75 +197,112 @@ class AdminController extends Controller
     }
 
     public function editClass($id)
-    {
-        Log::channel('classes')->info('Mengambil data kelas.', ['timestamp' => now()]);
-        $class = Classes::findOrFail($id);
-        $coaches = User::where('role', 'coach')
-            ->where('status', 'approved')
-            ->where('category_id', $class->category_id) // Filter berdasarkan kategori kelas
-            ->get();
-    
-        Log::channel('classes')->info('Data coach berhasil diambil.', ['coaches_count' => $coaches->count()]);
-        return view('admin.classes.edit', compact('class', 'coaches'));
-    }
+{
+    Log::channel('classes')->info('Mengambil data kelas.', ['timestamp' => now()]);
+    $class = Classes::findOrFail($id);
+
+    // Hari dan waktu dari kelas yang akan di-edit
+    $classDayOfWeek = $class->day_of_week;
+    $classStartTime = $class->start_time;
+    $classEndTime = $class->end_time;
+
+    // Mendapatkan coach yang sesuai dengan kategori dan tidak bertabrakan waktunya di hari yang sama
+    $coaches = User::where('role', 'coach')
+        ->where('status', 'approved')
+        ->where('category_id', $class->category_id) // Filter berdasarkan kategori kelas
+        ->whereDoesntHave('classes', function($query) use ($classDayOfWeek, $classStartTime, $classEndTime) {
+            $query->where('day_of_week', $classDayOfWeek) // Hari yang sama
+                ->where(function($q) use ($classStartTime, $classEndTime) {
+                    $q->where('start_time', '<', $classEndTime)
+                      ->where('end_time', '>', $classStartTime); // Waktu bentrok
+                });
+        })
+        ->get();
+
+    Log::channel('classes')->info('Data coach berhasil diambil.', ['coaches_count' => $coaches->count()]);
+    return view('admin.classes.edit', compact('class', 'coaches'));
+}
+
     
     public function updateClass(Request $request, $id)
-    {
-        Log::channel('classes')->info('Proses update kelas dimulai.', ['class_id' => $id]);
-    
-        // Validasi input
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'day_of_week' => 'required|string',
-            'start_time' => 'nullable|date_format:H:i',
-            'end_time' => 'nullable|date_format:H:i',
-            'price' => 'required|numeric|min:0',
-            'coach_id' => 'required|exists:users,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'quota' => 'required|integer|min:1',
-            'category_id' => 'required|exists:categories,id', // Validasi untuk category_id
-        ]);
-    
-        // Ambil data kelas
-        $class = Classes::findOrFail($id);
-        $originalData = $class->toArray(); // Simpan data asli untuk log
-    
-        // Unggah gambar jika ada
-        $imagePath = $class->image; // Simpan path gambar yang ada
-        if ($request->hasFile('image')) {
-            Log::channel('classes')->info('Mengunggah gambar baru untuk kelas.', ['class_id' => $id]);
-            if ($class->image) {
-                Storage::delete($class->image); // Hapus gambar yang lama
-            }
-            $imagePath = $request->file('image')->store('public/images'); // Simpan gambar baru
-        }
-    
-        // Update kelas
-        $class->update([
-            'name' => $request->name,
-            'description' => $request->description,
+{
+    Log::channel('classes')->info('Proses update kelas dimulai.', ['class_id' => $id]);
+
+    // Validasi input
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'required|string',
+        'day_of_week' => 'required|string',
+        'start_time' => 'nullable|date_format:H:i',
+        'end_time' => 'nullable|date_format:H:i',
+        'price' => 'required|numeric|min:0',
+        'coach_id' => 'required|exists:users,id',
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'quota' => 'required|integer|min:1',
+        'category_id' => 'required|exists:categories,id',
+    ]);
+
+    // Ambil data kelas
+    $class = Classes::findOrFail($id);
+    $originalData = $class->toArray(); // Simpan data asli untuk log
+
+    // Cek apakah ada kelas lain pada hari dan waktu yang sama (kecuali kelas itu sendiri)
+    $existingClass = Classes::where('coach_id', $request->coach_id)
+        ->where('day_of_week', $request->day_of_week)
+        ->where('id', '!=', $id) // Kecualikan kelas yang sedang diperbarui
+        ->where(function ($query) use ($request) {
+            $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
+                  ->orWhere(function($q) use ($request) {
+                      $q->where('start_time', '<=', $request->start_time)
+                        ->where('end_time', '>=', $request->end_time);
+                  });
+        })
+        ->exists();
+
+    if ($existingClass) {
+        Log::channel('classes')->warning('Kelas tidak bisa diperbarui. Pelatih sudah memiliki kelas pada hari dan waktu yang sama.', [
+            'coach_id' => $request->coach_id,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
-            'price' => $request->price,
-            'coach_id' => $request->coach_id,
-            'image' => $imagePath,
-            'quota' => $request->quota,
-            'category_id' => $request->category_id, // Update category_id
         ]);
-    
-        Log::channel('classes')->info('Kelas berhasil diperbarui.', [
-            'class_id' => $class->id,
-            'original_data' => $originalData,
-            'updated_data' => $class->toArray()
-        ]);
-    
-        // Update availability status
-        $this->updateCoachAvailabilityClass($request->coach_id, $request->day_of_week);
-    
-        return redirect()->route('admin.kelas')->with('success', 'Class updated successfully.');
+        return redirect()->back()->withErrors(['error' => 'Coach already has a class at this time.']);
     }
+
+    // Unggah gambar jika ada
+    $imagePath = $class->image; // Simpan path gambar yang ada
+    if ($request->hasFile('image')) {
+        Log::channel('classes')->info('Mengunggah gambar baru untuk kelas.', ['class_id' => $id]);
+        if ($class->image) {
+            Storage::delete($class->image); // Hapus gambar yang lama
+        }
+        $imagePath = $request->file('image')->store('public/images'); // Simpan gambar baru
+    }
+
+    // Update kelas
+    $class->update([
+        'name' => $request->name,
+        'description' => $request->description,
+        'day_of_week' => $request->day_of_week,
+        'start_time' => $request->start_time,
+        'end_time' => $request->end_time,
+        'price' => $request->price,
+        'coach_id' => $request->coach_id,
+        'image' => $imagePath,
+        'quota' => $request->quota,
+        'category_id' => $request->category_id,
+    ]);
+
+    Log::channel('classes')->info('Kelas berhasil diperbarui.', [
+        'class_id' => $class->id,
+        'original_data' => $originalData,
+        'updated_data' => $class->toArray()
+    ]);
+
+    return redirect()->route('admin.kelas')->with('success', 'Class updated successfully.');
+}
+
     
     public function deleteClass($id)
     {
@@ -264,19 +319,6 @@ class AdminController extends Controller
         // Hapus kelas dari database
         $class->delete();
     
-        // Cek apakah masih ada kelas yang dijadwalkan untuk coach pada hari yang sama
-        $hasClassToday = Classes::where('coach_id', $class->coach_id)
-            ->where('day_of_week', $class->day_of_week)
-            ->exists();
-    
-        // Update availability status coach berdasarkan ada atau tidaknya kelas
-        if ($hasClassToday) {
-            // Jika masih ada kelas, tetap unavailable
-            User::where('id', $class->coach_id)->update(['availability_status' => 0]);
-        } else {
-            // Jika tidak ada kelas, set coach menjadi available
-            User::where('id', $class->coach_id)->update(['availability_status' => 1]);
-        }
     
         Log::channel('classes')->info('Kelas berhasil dihapus.', ['class_id' => $id]);
     
@@ -294,55 +336,76 @@ class AdminController extends Controller
     }
     
     public function storeClass(Request $request)
-    {
-        Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
-    
-        // Validasi input
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'day_of_week' => 'required|string',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i',
-            'price' => 'required|numeric|min:0',
-            'coach_id' => 'required|exists:users,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'quota' => 'required|integer|min:1',
-            'category_id' => 'required|exists:categories,id', // Validasi untuk category_id
-        ]);
-    
-        // Unggah gambar jika ada
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            Log::channel('classes')->info('Mengunggah gambar untuk kelas baru.');
-            $imagePath = $request->file('image')->store('public/images'); // Simpan gambar baru
-        }
-    
-        // Simpan kelas baru
-        $class = Classes::create([
-            'name' => $request->name,
-            'description' => $request->description,
+{
+    Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
+
+    // Validasi input
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'required|string',
+        'day_of_week' => 'required|string',
+        'start_time' => 'required|date_format:H:i',
+        'end_time' => 'required|date_format:H:i',
+        'price' => 'required|numeric|min:0',
+        'coach_id' => 'required|exists:users,id',
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'quota' => 'required|integer|min:1',
+        'category_id' => 'required|exists:categories,id',
+    ]);
+
+    // Cek apakah ada kelas lain pada hari dan waktu yang sama
+    $existingClass = Classes::where('coach_id', $request->coach_id)
+        ->where('day_of_week', $request->day_of_week)
+        ->where(function ($query) use ($request) {
+            $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
+                  ->orWhere(function($q) use ($request) {
+                      $q->where('start_time', '<=', $request->start_time)
+                        ->where('end_time', '>=', $request->end_time);
+                  });
+        })
+        ->exists();
+
+    if ($existingClass) {
+        Log::channel('classes')->warning('Kelas tidak bisa ditambahkan. Pelatih tidak tersedia pada hari dan waktu yang sama.', [
+            'coach_id' => $request->coach_id,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
-            'price' => $request->price,
-            'coach_id' => $request->coach_id,
-            'image' => $imagePath,
-            'quota' => $request->quota,
-            'category_id' => $request->category_id, // Simpan category_id
         ]);
-    
-        Log::channel('classes')->info('Kelas baru berhasil disimpan.', [
-            'class_id' => $class->id,
-            'data' => $class->toArray()
-        ]);
-    
-        // Update availability status
-        $this->updateCoachAvailabilityClass($request->coach_id, $request->day_of_week);
-    
-        return redirect()->route('admin.kelas')->with('success', 'Class added successfully.');
-    }    
+        
+        // Mengembalikan kembali dengan pesan kesalahan
+        return redirect()->back()->withErrors(['error' => 'Coach tidak tersedia pada waktu yang ditentukan.']);
+    }
 
+    // Unggah gambar jika ada
+    $imagePath = null;
+    if ($request->hasFile('image')) {
+        Log::channel('classes')->info('Mengunggah gambar untuk kelas baru.');
+        $imagePath = $request->file('image')->store('public/images');
+    }
+
+    // Simpan kelas baru
+    $class = Classes::create([
+        'name' => $request->name,
+        'description' => $request->description,
+        'day_of_week' => $request->day_of_week,
+        'start_time' => $request->start_time,
+        'end_time' => $request->end_time,
+        'price' => $request->price,
+        'coach_id' => $request->coach_id,
+        'image' => $imagePath,
+        'quota' => $request->quota,
+        'category_id' => $request->category_id,
+    ]);
+
+    Log::channel('classes')->info('Kelas baru berhasil disimpan.', [
+        'class_id' => $class->id,
+        'data' => $class->toArray()
+    ]);
+
+    return redirect()->route('admin.kelas')->with('success', 'Class added successfully.');
+}
 
     private function updateCoachAvailabilityClass($coach_id, $day_of_week)
     {
@@ -837,18 +900,21 @@ class AdminController extends Controller
     $request->validate([
         'coach_id' => 'required|exists:users,id',
         'booking_date' => 'required|date',
-        'booking_time' => 'required|date_format:H:i',
+        'start_booking_time' => 'required|date_format:H:i',
+        'end_booking_time' => 'required|date_format:H:i',
     ]);
 
     $userId = Auth::id();
     $coachId = $request->input('coach_id');
     $bookingDate = Carbon::parse($request->input('booking_date'))->format('Y-m-d');
-    $bookingTime = Carbon::parse($request->input('booking_time'));
+    $startBookingTime = Carbon::parse($request->input('start_booking_time'));
+    $endBookingTime = Carbon::parse($request->input('end_booking_time'));
 
     // Periksa ketersediaan coach
     $hasBooking = CoachBooking::where('coach_id', $coachId)
         ->whereDate('booking_date', $bookingDate)
-        ->where('booking_time', $bookingTime)
+        ->where('start_booking_time', $startBookingTime)
+        ->where('end_booking_time', $endBookingTime)
         ->exists();
 
     if ($hasBooking) {
@@ -887,7 +953,8 @@ class AdminController extends Controller
         'user_id' => $userId,
         'session_count' => $newSessionCount,
         'booking_date' => $bookingDate,
-        'booking_time' => $bookingTime,
+        'start_booking_time' => $startBookingTime,
+        'end_booking_time' => $endBookingTime,
         'booking_code' => $bookingCode,
         'payment_required' => $paymentRequired,
     ]);
@@ -898,7 +965,8 @@ class AdminController extends Controller
         'session_count' => $newSessionCount,
         'payment_required' => $paymentRequired,
         'booking_date' => $bookingDate,
-        'booking_time' => $bookingTime->format('H:i'),
+        'start_booking_time' => $startBookingTime->format('H:i'),
+        'end_booking_time' => $endBookingTime->format('H:i'),
         'booking_code' => $bookingCode,
     ]);
 
@@ -937,7 +1005,8 @@ public function updateCoachBooking(Request $request, $id)
         'session_count' => 'required|integer|min:1',
         'payment_required' => 'required|boolean',
         'booking_date' => 'required|date',
-        'booking_time' => 'required|date_format:H:i',
+        'start_booking_time' => 'required|date_format:H:i',
+        'end_booking_time' => 'required|date_format:H:i',
     ]);
 
     $booking = CoachBooking::findOrFail($id);
@@ -949,7 +1018,8 @@ public function updateCoachBooking(Request $request, $id)
     $booking->session_count = $request->input('session_count');
     $booking->payment_required = $request->input('payment_required');
     $booking->booking_date = Carbon::parse($request->input('booking_date'));
-    $booking->booking_time = Carbon::parse($request->input('booking_time'));
+    $booking->start_booking_time = Carbon::parse($request->input('start_booking_time'));
+    $booking->end_booking_time = Carbon::parse($request->input('end_booking_time'));
     $booking->save();
 
     Log::channel('booking')->info('Booking coach berhasil diupdate.', [
@@ -958,7 +1028,8 @@ public function updateCoachBooking(Request $request, $id)
         'session_count' => $booking->session_count,
         'payment_required' => $booking->payment_required,
         'booking_date' => $booking->booking_date,
-        'booking_time' => $booking->booking_time,
+        'start_booking_time' => $booking->start_booking_time,
+        'end_booking_time' => $booking->end_booking_time,
     ]);
 
     // Update availability status untuk coach yang baru dan yang lama

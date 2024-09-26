@@ -25,8 +25,12 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="booking_time">Booking Time</label>
-                            <input type="time" name="booking_time" id="booking_time" class="form-control" required>
+                            <label for="start_booking_time">Booking Time</label>
+                            <input type="time" name="start_booking_time" id="start_booking_time" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_booking_time">Booking Time</label>
+                            <input type="time" name="end_booking_time" id="end_booking_time" class="form-control" required>
                         </div>
 
                         <button type="submit" class="btn btn-primary">Create Booking</button>

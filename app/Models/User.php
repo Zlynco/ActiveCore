@@ -59,9 +59,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Classes::class, 'coach_id');
     }
-    public function category()
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class, 'category_coach');
+    }
+    // Dalam model User.php
+public function scopeCoaches($query)
 {
-    return $this->belongsTo(Category::class, 'category_id');
+    return $query->where('role', 'coach');
 }
 
 }

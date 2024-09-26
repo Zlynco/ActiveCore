@@ -16,7 +16,7 @@ class Category extends Model
      */
     public function coaches()
     {
-        return $this->hasMany(User::class, 'category_id');
+        return $this->belongsToMany(User::class, 'category_coach');
     }
 
     /**

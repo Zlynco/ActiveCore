@@ -6,7 +6,7 @@
             <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Category</th> <!-- Menambahkan kolom kategori -->
+                <th>Categories</th> <!-- Menambahkan kolom kategori -->
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -16,18 +16,26 @@
                 <tr>
                     <td>{{ $coach->name }}</td>
                     <td>{{ $coach->email }}</td>
-                    <td>{{ $coach->category ? $coach->category->name : 'N/A' }}</td> <!-- Menampilkan nama kategori -->
+                    <td>
+                        @if ($coach->categories->isEmpty())
+                            N/A
+                        @else
+                            <ul>
+                                @foreach ($coach->categories as $category)
+                                    <li>{{ $category->name }}</li> <!-- Menampilkan semua kategori -->
+                                @endforeach
+                            </ul>
+                        @endif
+                    </td>
                     <td>{{ ucfirst($coach->status) }}</td>
                     <td>
                         @if ($coach->status === 'pending')
-                            <form action="{{ route('admin.coach.approve', $coach->id) }}" method="POST"
-                                style="display:inline;">
+                            <form action="{{ route('admin.coach.approve', $coach->id) }}" method="POST" style="display:inline;">
                                 @csrf
                                 @method('PUT')
                                 <button type="submit" class="btn btn-success">Approve</button>
                             </form>
-                            <form action="{{ route('admin.coach.reject', $coach->id) }}" method="POST"
-                                style="display:inline;">
+                            <form action="{{ route('admin.coach.reject', $coach->id) }}" method="POST" style="display:inline;">
                                 @csrf
                                 @method('PUT')
                                 <button type="submit" class="btn btn-danger">Reject</button>
@@ -38,8 +46,7 @@
                         <a href="{{ route('admin.coach.edit', $coach->id) }}" class="btn btn-warning">Edit</a>
 
                         <!-- Delete Button -->
-                        <form action="{{ route('admin.coach.delete', $coach->id) }}" method="POST"
-                            style="display:inline;">
+                        <form action="{{ route('admin.coach.delete', $coach->id) }}" method="POST" style="display:inline;">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-danger">Delete</button>

@@ -45,9 +45,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="booking_time">Booking Time</label>
-                            <input type="time" name="booking_time" id="booking_time" class="form-control"
-                                value="{{ $booking->booking_time ? \Carbon\Carbon::createFromFormat('H:i:s', $booking->booking_time)->format('H:i') : '' }}"
+                            <label for="start_booking_time">Booking Time</label>
+                            <input type="time" name="start_booking_time" id="start_booking_time" class="form-control"
+                                value="{{ $booking->start_booking_time ? \Carbon\Carbon::createFromFormat('H:i:s', $booking->start_booking_time)->format('H:i') : '' }}"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_booking_time">Booking Time</label>
+                            <input type="time" name="end_booking_time" id="end_booking_time" class="form-control"
+                                value="{{ $booking->end_booking_time ? \Carbon\Carbon::createFromFormat('H:i:s', $booking->end_booking_time)->format('H:i') : '' }}"
                                 required>
                         </div>
 

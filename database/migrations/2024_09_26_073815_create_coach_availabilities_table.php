@@ -13,14 +13,14 @@ return new class extends Migration
     {
         Schema::create('coach_availabilities', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('coach_id');
-            $table->string('day_of_week'); // Hari kelas atau booking (misal: Monday, Tuesday)
-            $table->date('date')->nullable(); // Tanggal spesifik untuk booking
-            $table->time('time')->nullable(); // Waktu kelas/booking
-            $table->boolean('status')->default(1); // 1 = available, 0 = unavailable
+            $table->unsignedBigInteger('user_id'); // Menggunakan user_id dari tabel users
+            $table->date('date'); // Tanggal availabilitas
+            $table->time('start_time'); // Waktu mulai availabilitas
+            $table->time('end_time'); // Waktu akhir availabilitas
             $table->timestamps();
         
-            $table->foreign('coach_id')->references('id')->on('users')->onDelete('cascade');
+            // Relasi ke tabel users (role coach)
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
         
     }

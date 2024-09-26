@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 // Model CoachBooking
 class CoachBooking extends Model
 {
-    protected $fillable = ['user_id', 'coach_id', 'session_count', 'booking_date', 'booking_time', 'payment_required', 'booking_code', 'availability_id'];
+    protected $fillable = ['user_id', 'coach_id', 'session_count', 'booking_date', 'start_booking_time','end_booking_time', 'payment_required', 'booking_code', 'availability_id'];
     // Relasi dengan member (User yang melakukan booking)
     public function member()
     {

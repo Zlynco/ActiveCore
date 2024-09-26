@@ -4,13 +4,21 @@
         <a href="{{ route('admin.kelas') }}" class="btn btn-secondary">Back to Manage Class</a>
     </div>
 
-    <div class="py-0" >
+    <div class="py-0">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100" style="max-height: 500px; overflow-y: scroll;">
                     <form action="{{ route('admin.classes.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <ul>
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
                         <div class="form-group">
                             <label for="image">Class Image</label>
                             <input type="file" id="image" name="image" class="form-control" accept="image/*">
@@ -18,7 +26,8 @@
 
                         <div class="form-group">
                             <label for="name">Class Name</label>
-                            <input type="text" id="name" name="name" class="form-control" required value="{{ old('name') }}">
+                            <input type="text" id="name" name="name" class="form-control" required
+                                value="{{ old('name') }}">
                             @error('name')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
@@ -31,10 +40,11 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="category_id">Category</label>
-                            <select id="category_id" name="category_id" class="form-control" required onchange="filterCoaches()">
+                            <select id="category_id" name="category_id" class="form-control" required
+                                onchange="filterCoaches()">
                                 <option value="">Select Category</option>
                                 @foreach ($categories as $category)
                                     <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -44,7 +54,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="day_of_week">Day of the Week</label>
                             <select name="day_of_week" class="form-control" required>
@@ -61,47 +71,55 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="start_time">Start Time</label>
-                            <input type="time" name="start_time" class="form-control" required value="{{ old('start_time') }}">
+                            <input type="time" name="start_time" class="form-control" required
+                                value="{{ old('start_time') }}">
                             @error('start_time')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="end_time">End Time</label>
-                            <input type="time" name="end_time" class="form-control" required value="{{ old('end_time') }}">
+                            <input type="time" name="end_time" class="form-control" required
+                                value="{{ old('end_time') }}">
                             @error('end_time')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="price">Price</label>
-                            <input type="number" id="price" name="price" class="form-control" step="0.01" required value="{{ old('price') }}">
+                            <input type="number" id="price" name="price" class="form-control" step="0.01"
+                                required value="{{ old('price') }}">
                             @error('price')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="quota">Quota</label>
-                            <input type="number" name="quota" id="quota" class="form-control" required value="{{ old('quota') }}">
+                            <input type="number" name="quota" id="quota" class="form-control" required
+                                value="{{ old('quota') }}">
                             @error('quota')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="coach_id">Coach</label>
                             <select id="coach_id" name="coach_id" class="form-control" required>
                                 <option value="">Select Coach</option>
                                 @foreach ($coaches as $coach)
-                                    <option value="{{ $coach->id }}" data-category="{{ $coach->category_id }}">{{ $coach->name }}</option>
+                                    @foreach ($coach->categories as $category)
+                                        <option value="{{ $coach->id }}" data-category="{{ $category->id }}">
+                                            {{ $coach->name }}</option>
+                                    @endforeach
                                 @endforeach
-                                <option value="no_coach" class="no-coach-option" style="display: none;">No Coach Available</option>
+                                <option value="no_coach" class="no-coach-option" style="display: none;">No Coach
+                                    Available</option>
                             </select>
                         </div>
 
@@ -111,6 +129,7 @@
             </div>
         </div>
     </div>
+
     <script>
         function filterCoaches() {
             const categoryId = document.getElementById('category_id').value;
@@ -118,10 +137,10 @@
             const submitBtn = document.getElementById('submitBtn');
             const noCoachOption = coachSelect.querySelector('.no-coach-option');
             let coachAvailable = false;
-            
+
             // Mengambil semua opsi coach
             const coaches = coachSelect.querySelectorAll('option:not(.no-coach-option)');
-            
+
             // Menampilkan atau menyembunyikan opsi pelatih berdasarkan kategori
             coaches.forEach(coach => {
                 if (coach.getAttribute('data-category') == categoryId) {

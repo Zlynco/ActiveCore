@@ -22,7 +22,7 @@
                                 role="tab" aria-controls="coach-bookings" aria-selected="false">Coach Bookings</a>
                         </li>
                         <form method="GET" action="{{ route('admin.booking') }}">
-                            <div class="mb-4">
+                            <div class="mb-1 ml-2">
                                 <x-text-input id="search" name="search" type="text" placeholder="Search booking..."
                                     :value="request('search')" class="form-control" />
                                 <x-input-error :messages="$errors->get('search')" class="mt-2" />
@@ -59,7 +59,7 @@
                                                 <td>{{ $booking['class_name'] }}</td>
                                                 <td>{{ $booking['coach_name'] }}</td>
                                                 <td>{{ $booking['member_name'] }}</td>
-                                                <td>{{ $booking['day_of_week'] }} at {{ $booking['time'] }}</td>
+                                                <td>{{ $booking['day_of_week'] }} at {{ $booking['start_time'] }} - {{ $booking['end_time'] }}</td>
                                                 <td>{{ $booking['booking_date'] }}</td>
                                                 <td>${{ $booking['amount'] }}</td>
                                                 <td>{{ $booking['paid'] }}</td>
@@ -94,7 +94,8 @@
                                             <th>Coach</th>
                                             <th>Member</th>
                                             <th>Session Count</th>
-                                            <th>Booking Date & Time</th>
+                                            <th>Booking Date</th>
+                                            <th>start & end time</th>
                                             <th>Payment Required</th>
                                             <th>Booking Code</th>
                                             <th>Actions</th>
@@ -106,13 +107,8 @@
                                                 <td>{{ $booking->coach->name }}</td>
                                                 <td>{{ $booking->member->name }}</td>
                                                 <td>{{ $booking->session_count }}</td>
-                                                <td>
-                                                    {{ \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d') }}
-                                                    @if ($booking->booking_time)
-                                                        at
-                                                        {{ \Carbon\Carbon::parse($booking->booking_time)->format('H:i') }}
-                                                    @endif
-                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d') }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i') }}</td>
                                                 <td>{{ $booking->payment_required ? 'Yes' : 'No' }}</td>
                                                 <td>{{ $booking->booking_code }}</td>
                                                 <td>
