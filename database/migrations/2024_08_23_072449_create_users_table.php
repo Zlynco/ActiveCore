@@ -20,8 +20,8 @@ return new class extends Migration
         $table->enum('role', ['member', 'coach', 'admin']); // Menambahkan kolom role
         $table->rememberToken();
         $table->timestamps();
-        $table->boolean('is_active')->default(false); // Default false untuk semua user
         $table->string('status')->default('pending');
+        $table->tinyInteger('availability_status')->change();
     });
 }
 

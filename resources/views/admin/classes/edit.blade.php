@@ -38,8 +38,12 @@
                     
                         <!-- Waktu -->
                         <div class="form-group">
-                            <label for="time">Waktu</label>
-                            <input type="time" name="time" class="form-control" value="{{ old('time', $class->time) }}" required>
+                            <label for="start_time">Waktu Mulai</label>
+                            <input type="time" name="start_time" class="form-control" value="{{ old('start_time', $class->start_time) }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_time">Waktu Berakhir</label>
+                            <input type="time" name="end_time" class="form-control" value="{{ old('end_time', $class->end_time) }}" required>
                         </div>
                     
                         <!-- Harga -->

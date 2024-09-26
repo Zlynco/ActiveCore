@@ -15,6 +15,17 @@
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control" id="email" name="email" value="{{ $coach->email }}" required>
             </div>
+            <div class="mb-3">
+                <label for="category_id" class="form-label">Category</label>
+                <select id="category_id" name="category_id" class="form-control" required>
+                    <option value="">Select Category</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}" {{ $category->id == $coach->category_id ? 'selected' : '' }}>
+                            {{ $category->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
             <button type="submit" class="btn btn-primary">Update</button>
         </form>

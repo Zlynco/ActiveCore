@@ -10,7 +10,7 @@
     <div class="py-0">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100" style="max-height: 500px; overflow-y: scroll;" >
+                <div class="p-6 text-gray-900 dark:text-gray-100" style="max-height: 500px; overflow-y: scroll;">
                     <form method="GET" action="{{ route('admin.kelas') }}">
                         <div class="mb-4">
                             <x-text-input id="search" name="search" type="text" placeholder="Search Class..."
@@ -37,15 +37,17 @@
                                 <tr>
                                     <th>Class Image</th>
                                     <th>Class Name</th>
+                                    <th>Class Category</th> <!-- Kolom Kategori -->
                                     <th>Coach</th>
                                     <th>Day</th>
-                                    <th>Time</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
                                     <th>Price</th>
                                     <th>Quota</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody >
+                            <tbody>
                                 @foreach ($classes as $class)
                                     <tr>
                                         <td>
@@ -57,9 +59,11 @@
                                             @endif
                                         </td>
                                         <td>{{ $class->name }}</td>
+                                        <td>{{ $class->category->name ?? 'No Category' }}</td> <!-- Menampilkan kategori -->
                                         <td>{{ $class->coach->name }}</td>
                                         <td>{{ $class->day_of_week }}</td>
-                                        <td>{{ $class->time }}</td>
+                                        <td>{{ $class->start_time }}</td>
+                                        <td>{{ $class->end_time }}</td>
                                         <td>${{ $class->price }}</td>
                                         <td>{{ $class->quota }}</td>
                                         <td>

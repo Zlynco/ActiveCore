@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'email_verified_at',
         'password',
+        'category_id',
         'role',
     ];
     // Relasi dengan Booking
@@ -58,4 +59,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Classes::class, 'coach_id');
     }
+    public function category()
+{
+    return $this->belongsTo(Category::class, 'category_id');
+}
+
 }

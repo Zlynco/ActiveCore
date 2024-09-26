@@ -49,7 +49,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     // Rute untuk edit, update, dan delete coach
     Route::get('/admin/coaches/{id}/edit', [AdminController::class, 'editCoach'])->name('admin.coach.edit');
-    Route::post('/admin/coaches/{id}', [AdminController::class, 'updateCoach'])->name('admin.coach.update');
+    Route::put('/admin/coaches/{id}', [AdminController::class, 'updateCoach'])->name('admin.coach.update');
     Route::delete('/admin/coaches/{id}', [AdminController::class, 'deleteCoach'])->name('admin.coach.delete');
     Route::put('/admin/coaches/{id}/approve', [AdminController::class, 'approveCoach'])->name('admin.coach.approve');
     Route::put('/admin/coaches/{id}/reject', [AdminController::class, 'rejectCoach'])->name('admin.coach.reject');

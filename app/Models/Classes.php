@@ -14,7 +14,8 @@ class Classes extends Model
         'name',
         'description',
         'day_of_week',
-        'time',
+        'start_time',
+        'end_time',
         'image',
         'price',
         'coach_id',
@@ -50,4 +51,10 @@ class Classes extends Model
 
         return $totalQuota - $totalBooked;
     }
+    public function category()
+{
+    return $this->belongsTo(Category::class, 'category_id');
 }
+
+}
+

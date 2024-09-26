@@ -15,9 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('image')->nullable(); // Kolom untuk gambar
             $table->string('name');
+            $table->enum('category_class', ['Zumba', 'Yoga', 'Muay Thai', 'Karate', 'Boxing']);
             $table->text('description');
             $table->string('day_of_week'); // Tambahkan hari jadwal kelas (misalnya: Senin)
-            $table->time('time');  
+            $table->start_time('time');
+            $table->end_time('time');  
             $table->decimal('price', 8, 2); // Kolom untuk harga
             $table->unsignedBigInteger('coach_id'); // ID coach dari tabel users
             $table->foreign('coach_id')->references('id')->on('users')->onDelete('cascade'); // Relasi ke tabel users

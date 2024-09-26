@@ -21,7 +21,7 @@
                                 @if(count($classes) > 0)
                                     <ul>
                                         @foreach($classes as $class)
-                                            <li>{{ $class->name }} - {{ $class->day_of_week }} at {{ $class->time }}</li>
+                                            <li>{{ $class->name }} - {{ $class->day_of_week }} at {{ $class->start_time }}</li>
                                         @endforeach
                                     </ul>
                                 @else

@@ -6,6 +6,7 @@
             <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Category</th> <!-- Menambahkan kolom kategori -->
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -15,6 +16,7 @@
                 <tr>
                     <td>{{ $coach->name }}</td>
                     <td>{{ $coach->email }}</td>
+                    <td>{{ $coach->category ? $coach->category->name : 'N/A' }}</td> <!-- Menampilkan nama kategori -->
                     <td>{{ ucfirst($coach->status) }}</td>
                     <td>
                         @if ($coach->status === 'pending')
