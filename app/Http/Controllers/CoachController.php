@@ -282,4 +282,32 @@ public function destroyMemberAttendance($id)
 
         return !$hasClassOnDate && !$hasBookingOnDate;
     }
+    public function getClasses()
+    {
+        // Ambil data coach yang sedang login
+        $coach = Auth::user();
+    
+        // Ambil kelas yang harus diajar oleh coach
+        $classes = Classes::where('coach_id', $coach->id)->get();
+    
+        // Format data untuk API
+        $events = [];
+    
+        foreach ($classes as $class) {
+            // Mendapatkan tanggal kelas berikutnya
+            $nextClassDate = $this->getNextClassDate($class->day_of_week);
+    
+            // Menghitung start dan end berdasarkan tanggal kelas berikutnya
+            $events[] = [
+                'title' => $class->name,
+                'start' => $nextClassDate->toDateString() . ' ' . $class->start_time,
+                'end' => $nextClassDate->toDateString() . ' ' . $class->end_time,
+                'quota' => $class->quota,
+            ];
+        }
+    
+        return response()->json($events);
+    }
+    
+    
 }

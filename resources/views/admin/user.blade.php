@@ -25,12 +25,12 @@
         </ul>
         <!-- Search Form -->
 
-        <div class="tab-content" id="userTabsContent" style="max-height: 500px; overflow-y: scroll;">
-            <div class="tab-pane fade show active" id="members" role="tabpanel" aria-labelledby="members-tab">
+        <div class="tab-content" id="userTabsContent">
+            <div class="tab-pane fade show active" id="members" role="tabpanel" aria-labelledby="members-tab" style="max-height: 400px; overflow-y: scroll;">
                 <!-- Konten untuk Members -->
                 @include('admin.partials.members')
             </div>
-            <div class="tab-pane fade" id="coaches" role="tabpanel" aria-labelledby="coaches-tab">
+            <div class="tab-pane fade" id="coaches" role="tabpanel" aria-labelledby="coaches-tab" style="max-height: 400px; overflow-y: scroll;">
                 <!-- Konten untuk Coaches -->
                 @include('admin.partials.coaches')
             </div>

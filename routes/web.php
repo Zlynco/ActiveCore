@@ -112,13 +112,14 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('attendances/logs', [AdminController::class, 'showAttendanceLogs'])->name('attendances.logs');
         //other
         Route::get('/search', [SearchController::class, 'search'])->name('search');
-
         Route::get('/api/available-dates', [AdminController::class, 'getAvailableDates']);
         Route::get('/api/coach/{coach}/availability', [AdminController::class, 'getAvailabilityByCoach']);
     });
 });
 Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/coach/dashboard', [CoachController::class, 'index'])->name('coach.dashboard');
+    Route::get('/api/coach/classes', [AdminController::class, 'getClasses']);
+
 
     Route::prefix('coach')->name('coach.')->group(function () {
         Route::get('/kelas', [CoachController::class, 'coachClasses'])->name('kelas');

@@ -406,8 +406,67 @@ public function deleteCoach($id)
 
     return redirect()->route('admin.kelas')->with('success', 'Class added successfully.');
 }
+public function getCoachClasses()
+{
+    // Ambil kelas yang dimiliki coach yang sedang login
+    $classes = Classes::where('coach_id', auth()->id())->get();
 
-    private function updateCoachAvailabilityClass($coach_id, $day_of_week)
+    $events = [];
+
+    foreach ($classes as $class) {
+        $startDate = $this->getNextClassDate($class->day_of_week); // Dapatkan tanggal kelas berikutnya
+        $startDateTime = $startDate->format('Y-m-d') . 'T' . $class->start_time; // Format waktu mulai
+        $endDateTime = $startDate->format('Y-m-d') . 'T' . $class->end_time; // Format waktu selesai
+
+        $events[] = [
+            'title' => $class->name,
+            'start' => $startDateTime,
+            'end' => $endDateTime,
+            'description' => $class->description,
+            'price' => $class->price,
+        ];
+    }
+
+    return response()->json($events); // Mengembalikan data dalam format JSON
+}
+public function getClasses()
+{
+    // Ambil data coach yang sedang login
+    $coach = Auth::user();
+
+    // Ambil kelas yang harus diajar oleh coach
+    $classes = Classes::where('coach_id', $coach->id)->get();
+
+    // Format data untuk API
+    $events = [];
+
+    // Tentukan periode waktu untuk kelas yang akan datang
+    $today = now();
+    $endDate = now()->addMonth(); // Misalnya, satu bulan ke depan
+
+    foreach ($classes as $class) {
+        // Mendapatkan tanggal kelas berikutnya
+        $nextClassDate = $this->getNextClassDate($class->day_of_week);
+
+        // Loop untuk menggenerate tanggal setiap minggu
+        while ($nextClassDate <= $endDate) {
+            $events[] = [
+                'title' => $class->name,
+                'start' => $nextClassDate->toDateString() . ' ' . $class->start_time,
+                'end' => $nextClassDate->toDateString() . ' ' . $class->end_time,
+                'quota' => $class->quota,
+            ];
+
+            // Tambahkan 7 hari untuk mendapatkan kelas berikutnya
+            $nextClassDate->addWeek();
+        }
+    }
+
+    return response()->json($events);
+}
+
+
+     private function updateCoachAvailabilityClass($coach_id, $day_of_week)
     {
         $today = Carbon::now(); // Hari ini
         $todayDayOfWeek = $today->format('l'); // Ambil nama hari dalam format lengkap
@@ -484,27 +543,34 @@ public function deleteCoach($id)
     ]);
 }
 
-    public function getNextClassDate($day_of_week)
-    {
-        $daysOfWeek = [
-            'Minggu' => 0,
-            'Senin' => 1,
-            'Selasa' => 2,
-            'Rabu' => 3,
-            'Kamis' => 4,
-            'Jumat' => 5,
-            'Sabtu' => 6,
-        ];
+public function getNextClassDate($dayOfWeek)
+{
+    // Hari ini
+    $today = now();
 
-        $today = Carbon::now();
-        $targetDay = $daysOfWeek[$day_of_week];
+    // Konversi nama hari ke angka (0 untuk Minggu, 1 untuk Senin, dst.)
+    $daysOfWeek = [
+        'Minggu' => 0,
+        'Senin' => 1,
+        'Selasa' => 2,
+        'Rabu' => 3,
+        'Kamis' => 4,
+        'Jumat' => 5,
+        'Sabtu' => 6,
+    ];
 
-        // Hitung hari ke depan dari hari ini ke hari target
-        $daysUntilNextClass = ($targetDay - $today->dayOfWeek + 7) % 7;
+    // Hitung selisih hari sampai hari kelas berikutnya
+    $targetDayOfWeek = $daysOfWeek[$dayOfWeek];
+    $diffInDays = ($targetDayOfWeek + 7 - $today->dayOfWeek) % 7;
 
-        // Jika hari ini adalah hari kelas, kembalikan hari ini
-        return $today->addDays($daysUntilNextClass);
+    // Jika hari kelas adalah hari ini, maka tambahkan 7 hari untuk mendapatkan kelas berikutnya
+    if ($diffInDays == 0) {
+        $diffInDays = 7;
     }
+
+    return $today->addDays($diffInDays);
+}
+
 
 
     // Function untuk menampilkan halaman class admin

@@ -1,6 +1,8 @@
 @extends('layouts.appcoach')
 
 @section('content')
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+
     <!-- Page Heading -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Dashboard Coach</h1>
@@ -21,7 +23,7 @@
                                 @if(count($classes) > 0)
                                     <ul>
                                         @foreach($classes as $class)
-                                            <li>{{ $class->name }} - {{ $class->day_of_week }} at {{ $class->start_time }}</li>
+                                            <li>{{ $class->name }} - {{ $class->day_of_week }} at {{ $class->start_time }} - {{ $class->end_time }}</li>
                                         @endforeach
                                     </ul>
                                 @else
@@ -63,19 +65,20 @@
         </div>
     </div>
 
-    <!-- Additional Info Section -->
+    <!-- Calendar Section -->
     <div class="row">
         <div class="col-lg-12 mb-4">
             <div class="card shadow mb-4">
                 <!-- Card Header -->
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Important Notes</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Class Schedule</h6>
                 </div>
                 <!-- Card Body -->
                 <div class="card-body">
-                    <p>Ensure to mark attendance for each class on time. Keep track of your schedules and notify admin for any changes or cancellations.</p>
+                    <div id="calendar"></div> <!-- Tempat untuk menampilkan kalender -->
                 </div>
             </div>
         </div>
     </div>
-@endsection
+    
+@endsection 
