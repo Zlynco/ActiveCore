@@ -19,6 +19,7 @@ class Classes extends Model
         'image',
         'price',
         'coach_id',
+        'category_id',
         'quota',
         'current_bookings',
     ];

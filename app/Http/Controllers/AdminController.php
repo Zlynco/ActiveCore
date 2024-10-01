@@ -198,111 +198,109 @@ public function deleteCoach($id)
 
     public function editClass($id)
 {
+    // Logging untuk mengambil data kelas
     Log::channel('classes')->info('Mengambil data kelas.', ['timestamp' => now()]);
+
+    // Mencari kelas berdasarkan ID
     $class = Classes::findOrFail($id);
 
-    // Hari dan waktu dari kelas yang akan di-edit
+    // Mengambil semua kategori
+    $categories = Category::all();
+
+    // Menyimpan hari dan waktu dari kelas yang akan di-edit
     $classDayOfWeek = $class->day_of_week;
     $classStartTime = $class->start_time;
     $classEndTime = $class->end_time;
 
-    // Mendapatkan coach yang sesuai dengan kategori dan tidak bertabrakan waktunya di hari yang sama
-    $coaches = User::where('role', 'coach')
-        ->where('status', 'approved')
-        ->where('category_id', $class->category_id) // Filter berdasarkan kategori kelas
-        ->whereDoesntHave('classes', function($query) use ($classDayOfWeek, $classStartTime, $classEndTime) {
-            $query->where('day_of_week', $classDayOfWeek) // Hari yang sama
-                ->where(function($q) use ($classStartTime, $classEndTime) {
-                    $q->where('start_time', '<', $classEndTime)
-                      ->where('end_time', '>', $classStartTime); // Waktu bentrok
-                });
-        })
-        ->get();
 
+    $coaches = User::where('role', 'coach')->where('status', 'approved')->get();
+
+    // Logging untuk jumlah coach yang berhasil diambil
     Log::channel('classes')->info('Data coach berhasil diambil.', ['coaches_count' => $coaches->count()]);
-    return view('admin.classes.edit', compact('class', 'coaches'));
+
+    // Mengembalikan view dengan data yang diperlukan
+    return view('admin.classes.edit', compact('class', 'coaches', 'categories'));
 }
 
     
     public function updateClass(Request $request, $id)
-{
-    Log::channel('classes')->info('Proses update kelas dimulai.', ['class_id' => $id]);
-
-    // Validasi input
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'required|string',
-        'day_of_week' => 'required|string',
-        'start_time' => 'nullable|date_format:H:i',
-        'end_time' => 'nullable|date_format:H:i',
-        'price' => 'required|numeric|min:0',
-        'coach_id' => 'required|exists:users,id',
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        'quota' => 'required|integer|min:1',
-        'category_id' => 'required|exists:categories,id',
-    ]);
-
-    // Ambil data kelas
-    $class = Classes::findOrFail($id);
-    $originalData = $class->toArray(); // Simpan data asli untuk log
-
-    // Cek apakah ada kelas lain pada hari dan waktu yang sama (kecuali kelas itu sendiri)
-    $existingClass = Classes::where('coach_id', $request->coach_id)
-        ->where('day_of_week', $request->day_of_week)
-        ->where('id', '!=', $id) // Kecualikan kelas yang sedang diperbarui
-        ->where(function ($query) use ($request) {
-            $query->whereBetween('start_time', [$request->start_time, $request->end_time])
-                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
-                  ->orWhere(function($q) use ($request) {
-                      $q->where('start_time', '<=', $request->start_time)
-                        ->where('end_time', '>=', $request->end_time);
-                  });
-        })
-        ->exists();
-
-    if ($existingClass) {
-        Log::channel('classes')->warning('Kelas tidak bisa diperbarui. Pelatih sudah memiliki kelas pada hari dan waktu yang sama.', [
-            'coach_id' => $request->coach_id,
+    {
+        Log::channel('classes')->info('Proses update kelas dimulai.', ['class_id' => $id]);
+    
+        // Validasi input
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'day_of_week' => 'required|string',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'price' => 'required|numeric|min:0',
+            'coach_id' => 'required|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'quota' => 'required|integer|min:1',
+            'category_id' => 'required|exists:categories,id',
+        ]);
+    
+        // Ambil data kelas
+        $class = Classes::findOrFail($id);
+        $originalData = $class->toArray(); // Simpan data asli untuk log
+    
+        // Cek apakah ada kelas lain pada hari dan waktu yang sama (kecuali kelas itu sendiri)
+        $existingClass = Classes::where('coach_id', $request->coach_id)
+            ->where('day_of_week', $request->day_of_week)
+            ->where('id', '!=', $id) // Kecualikan kelas yang sedang diperbarui
+            ->where(function ($query) use ($request) {
+                $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                      ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
+                      ->orWhere(function($q) use ($request) {
+                          $q->where('start_time', '<=', $request->start_time)
+                            ->where('end_time', '>=', $request->end_time);
+                      });
+            })
+            ->exists();
+    
+        if ($existingClass) {
+            Log::channel('classes')->warning('Kelas tidak bisa diperbarui. Pelatih sudah memiliki kelas pada hari dan waktu yang sama.', [
+                'coach_id' => $request->coach_id,
+                'day_of_week' => $request->day_of_week,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+            ]);
+            return redirect()->back()->withErrors(['error' => 'Coach already has a class at this time.']);
+        }
+    
+        // Unggah gambar jika ada
+        $imagePath = $class->image; // Simpan path gambar yang ada
+        if ($request->hasFile('image')) {
+            Log::channel('classes')->info('Mengunggah gambar baru untuk kelas.', ['class_id' => $id]);
+            if ($class->image) {
+                Storage::delete($class->image); // Hapus gambar yang lama
+            }
+            $imagePath = $request->file('image')->store('public/images'); // Simpan gambar baru
+        }
+    
+        // Update kelas
+        $class->update([
+            'name' => $request->name,
+            'description' => $request->description,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
+            'price' => $request->price,
+            'coach_id' => $request->coach_id,
+            'image' => $imagePath,
+            'quota' => $request->quota,
+            'category_id' => $request->category_id,
         ]);
-        return redirect()->back()->withErrors(['error' => 'Coach already has a class at this time.']);
+    
+        Log::channel('classes')->info('Kelas berhasil diperbarui.', [
+            'class_id' => $class->id,
+            'original_data' => $originalData,
+            'updated_data' => $class->toArray()
+        ]);
+    
+        return redirect()->route('admin.kelas')->with('success', 'Class updated successfully.');
     }
-
-    // Unggah gambar jika ada
-    $imagePath = $class->image; // Simpan path gambar yang ada
-    if ($request->hasFile('image')) {
-        Log::channel('classes')->info('Mengunggah gambar baru untuk kelas.', ['class_id' => $id]);
-        if ($class->image) {
-            Storage::delete($class->image); // Hapus gambar yang lama
-        }
-        $imagePath = $request->file('image')->store('public/images'); // Simpan gambar baru
-    }
-
-    // Update kelas
-    $class->update([
-        'name' => $request->name,
-        'description' => $request->description,
-        'day_of_week' => $request->day_of_week,
-        'start_time' => $request->start_time,
-        'end_time' => $request->end_time,
-        'price' => $request->price,
-        'coach_id' => $request->coach_id,
-        'image' => $imagePath,
-        'quota' => $request->quota,
-        'category_id' => $request->category_id,
-    ]);
-
-    Log::channel('classes')->info('Kelas berhasil diperbarui.', [
-        'class_id' => $class->id,
-        'original_data' => $originalData,
-        'updated_data' => $class->toArray()
-    ]);
-
-    return redirect()->route('admin.kelas')->with('success', 'Class updated successfully.');
-}
-
     
     public function deleteClass($id)
     {
@@ -318,7 +316,6 @@ public function deleteCoach($id)
     
         // Hapus kelas dari database
         $class->delete();
-    
     
         Log::channel('classes')->info('Kelas berhasil dihapus.', ['class_id' => $id]);
     
@@ -336,76 +333,74 @@ public function deleteCoach($id)
     }
     
     public function storeClass(Request $request)
-{
-    Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
-
-    // Validasi input
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'required|string',
-        'day_of_week' => 'required|string',
-        'start_time' => 'required|date_format:H:i',
-        'end_time' => 'required|date_format:H:i',
-        'price' => 'required|numeric|min:0',
-        'coach_id' => 'required|exists:users,id',
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        'quota' => 'required|integer|min:1',
-        'category_id' => 'required|exists:categories,id',
-    ]);
-
-    // Cek apakah ada kelas lain pada hari dan waktu yang sama
-    $existingClass = Classes::where('coach_id', $request->coach_id)
-        ->where('day_of_week', $request->day_of_week)
-        ->where(function ($query) use ($request) {
-            $query->whereBetween('start_time', [$request->start_time, $request->end_time])
-                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
-                  ->orWhere(function($q) use ($request) {
-                      $q->where('start_time', '<=', $request->start_time)
-                        ->where('end_time', '>=', $request->end_time);
-                  });
-        })
-        ->exists();
-
-    if ($existingClass) {
-        Log::channel('classes')->warning('Kelas tidak bisa ditambahkan. Pelatih tidak tersedia pada hari dan waktu yang sama.', [
-            'coach_id' => $request->coach_id,
+    {
+        Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
+    
+        // Validasi input
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'day_of_week' => 'required|string',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'price' => 'required|numeric|min:0',
+            'coach_id' => 'required|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'quota' => 'required|integer|min:1',
+            'category_id' => 'required|exists:categories,id',
+        ]);
+            
+        // Cek apakah ada kelas lain pada hari dan waktu yang sama
+        $existingClass = Classes::where('coach_id', $request->coach_id)
+            ->where('day_of_week', $request->day_of_week)
+            ->where(function ($query) use ($request) {
+                $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                      ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
+                      ->orWhere(function($q) use ($request) {
+                          $q->where('start_time', '<=', $request->start_time)
+                            ->where('end_time', '>=', $request->end_time);
+                      });
+            })
+            ->exists();
+    
+        if ($existingClass) {
+            Log::channel('classes')->warning('Kelas tidak bisa ditambahkan. Pelatih tidak tersedia pada hari dan waktu yang sama.', [
+                'coach_id' => $request->coach_id,
+                'day_of_week' => $request->day_of_week,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+            ]);
+            
+            // Mengembalikan kembali dengan pesan kesalahan
+            return redirect()->back()->withErrors(['error' => 'Coach tidak tersedia pada waktu yang ditentukan.']);
+        }
+    
+        // Unggah gambar jika ada
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            Log::channel('classes')->info('Mengunggah gambar untuk kelas baru.');
+            $imagePath = $request->file('image')->store('public/images');
+        }
+    
+        // Simpan kelas baru
+        $class = Classes::create([
+            'name' => $request->name,
+            'description' => $request->description,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
+            'price' => $request->price,
+            'coach_id' => $request->coach_id,
+            'image' => $imagePath,
+            'quota' => $request->quota,
+            'category_id' => $request->category_id,
         ]);
-        
-        // Mengembalikan kembali dengan pesan kesalahan
-        return redirect()->back()->withErrors(['error' => 'Coach tidak tersedia pada waktu yang ditentukan.']);
+    
+        Log::channel('classes')->info('Kelas berhasil dibuat.', ['class_id' => $class->id]);
+    
+        return redirect()->route('admin.kelas')->with('success', 'Class created successfully.');
     }
-
-    // Unggah gambar jika ada
-    $imagePath = null;
-    if ($request->hasFile('image')) {
-        Log::channel('classes')->info('Mengunggah gambar untuk kelas baru.');
-        $imagePath = $request->file('image')->store('public/images');
-    }
-
-    // Simpan kelas baru
-    $class = Classes::create([
-        'name' => $request->name,
-        'description' => $request->description,
-        'day_of_week' => $request->day_of_week,
-        'start_time' => $request->start_time,
-        'end_time' => $request->end_time,
-        'price' => $request->price,
-        'coach_id' => $request->coach_id,
-        'image' => $imagePath,
-        'quota' => $request->quota,
-        'category_id' => $request->category_id,
-    ]);
-
-    Log::channel('classes')->info('Kelas baru berhasil disimpan.', [
-        'class_id' => $class->id,
-        'data' => $class->toArray()
-    ]);
-
-    return redirect()->route('admin.kelas')->with('success', 'Class added successfully.');
-}
+    
 public function getCoachClasses()
 {
     // Ambil kelas yang dimiliki coach yang sedang login
@@ -571,8 +566,25 @@ public function getNextClassDate($dayOfWeek)
     return $today->addDays($diffInDays);
 }
 
+public function scanQrCodeBook($id)
+    {
+        $booking = CoachBooking::find($id);
+        
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found.'], 404);
+        }
 
+        if ($booking->scanned) {
+            return response()->json(['message' => 'This QR code has already been scanned.'], 400);
+        }
 
+        // Tandai booking sebagai sudah dipindai
+        $booking->scanned = true;
+        $booking->save();
+
+        // Kembalikan respons sukses
+        return response()->json(['message' => 'QR code scanned successfully.']);
+    }
     // Function untuk menampilkan halaman class admin
     public function showClasses()
     {
@@ -586,17 +598,18 @@ public function getNextClassDate($dayOfWeek)
         return view('admin.kelas', compact('classes'));
     }
     public function generateBookingCode($prefix, $nextId)
-    {
+{
+    $code = $prefix . '-' . now()->format('Ymd') . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+
+    // Periksa apakah kode sudah ada di database (untuk booking dan coach bookings)
+    while (Booking::where('booking_code', $code)->exists() || CoachBooking::where('booking_code', $code)->exists()) {
+        $nextId++;
         $code = $prefix . '-' . now()->format('Ymd') . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
-
-        // Periksa apakah kode sudah ada di database
-        while (CoachBooking::where('booking_code', $code)->exists()) {
-            $nextId++;
-            $code = $prefix . '-' . now()->format('Ymd') . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
-        }
-
-        return $code;
     }
+
+    return $code;
+}
+
 
     public function showPayment($bookingId)
     {
@@ -659,7 +672,6 @@ public function getNextClassDate($dayOfWeek)
 
         return view('admin.booking', compact('bookings'));
     }
-
     public function manageBooking(Request $request)
     {
         $search = $request->input('search');
@@ -717,6 +729,7 @@ public function getNextClassDate($dayOfWeek)
                 'quota' => $booking->class->quota,
                 'booking_code' => $booking->booking_code,
                 'id' => $booking->id,
+                'checked_in' => $booking->checked_in ? 'Yes' : 'No', // Menambahkan status checked-in
             ];
         });
 
@@ -727,6 +740,7 @@ public function getNextClassDate($dayOfWeek)
 
         return view('admin.booking', compact('bookings', 'coachBookings'));
     }
+
 
     public function createBooking()
     {
@@ -809,10 +823,12 @@ public function getNextClassDate($dayOfWeek)
             return redirect()->back()->with('quota_full', true);
         }
 
-        // Buat booking baru
+        // Generate booking code
         $nextBookingId = Booking::max('id') + 1;
         $bookingCode = $this->generateBookingCode('CLS', $nextBookingId);
 
+
+        // Simpan booking baru ke database
         Booking::create([
             'class_id' => $request->class_id,
             'user_id' => Auth::id(),
@@ -900,6 +916,33 @@ public function getNextClassDate($dayOfWeek)
         Log::channel('booking')->info('Booking berhasil dihapus.', ['booking_id' => $id]);
 
         return redirect()->route('admin.booking')->with('success', 'Booking deleted successfully.');
+    }
+    public function validateAttendance(Request $request)
+    {
+        $bookingCode = $request->input('booking_code');
+
+        // Cari booking berdasarkan booking code
+        $booking = Booking::where('booking_code', $bookingCode)->first();
+
+        if (!$booking) {
+            return redirect()->back()->with('error', 'Invalid booking code.');
+        }
+
+        // Cek apakah sudah absen
+        if ($booking->attended) {
+            return redirect()->back()->with('error', 'This booking has already been used for attendance.');
+        }
+
+        // Tandai bahwa booking telah digunakan untuk absen
+        $booking->attended = true;
+        $booking->save();
+
+        Log::channel('booking')->info('Absensi berhasil dilakukan.', [
+            'booking_id' => $booking->id,
+            'booking_code' => $bookingCode,
+        ]);
+
+        return redirect()->back()->with('success', 'Attendance successfully recorded.');
     }
     public function getAvailableDates(Request $request)
     {

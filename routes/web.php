@@ -9,7 +9,9 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\SearchController;
+use BaconQrCode\Encoder\QrCode;
 use Illuminate\Support\Facades\Route;
+use SimpleSoftwareIO\QrCode\Facades\QrCode as FacadesQrCode;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,6 +71,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('bookings/{id}/edit', [AdminController::class, 'editBooking'])->name('bookings.edit');
         Route::put('bookings/{id}', [AdminController::class, 'updateBooking'])->name('bookings.update');
         Route::delete('bookings/{id}', [AdminController::class, 'destroyBooking'])->name('bookings.destroy');
+        Route::post('/scan-qr/{id}', [AdminController::class, 'scanQrCodeBook'])->name('scan.qr');
+
         // Route untuk menampilkan halaman pembayaran
         Route::get('/payment/{booking}', [AdminController::class, 'showPayment'])->name('payment.show');
         // Route untuk memproses pembayaran
@@ -147,6 +151,9 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
 });
 
 
+Route::get('/generate-qr-code/{bookingCode}', function ($bookingCode) {
+    return FacadesQrCode::size(250)->generate($bookingCode);
+})->name('generate.qr.code');
 
 Route::get('/dashboard', function () {
     return view('dashboard');

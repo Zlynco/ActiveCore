@@ -12,7 +12,7 @@
     <div class="row">
         <!-- Card: Upcoming Classes -->
         <div class="col-xl-6 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card border-bottom-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
@@ -41,7 +41,7 @@
 
         <!-- Card: Coach Availability Status -->
         <div class="col-xl-6 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
+            <div class="card border-bottom-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
@@ -49,11 +49,7 @@
                                 Availability Status
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                @if($coach->availability_status == 1)
-                                    <span class="text-success">Available</span>
-                                @else
-                                    <span class="text-danger">Unavailable</span>
-                                @endif
+????
                             </div>
                         </div>
                         <div class="col-auto">
@@ -80,5 +76,26 @@
             </div>
         </div>
     </div>
-    
+<!-- Modal untuk Menampilkan Detail Kelas -->
+<div class="modal fade" id="classDetailModal" tabindex="-1" role="dialog" aria-labelledby="classDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="classDetailModalLabel">Class Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="classTitle"></p>
+                <p id="classTime"></p>
+                <p id="classQuota"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 @endsection 

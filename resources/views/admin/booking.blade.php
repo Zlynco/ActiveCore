@@ -2,7 +2,8 @@
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Manage Bookings</h1>
         <div class="d-flex mt-3 mt-sm-0">
-            <a id="addNewBookingBtn" href="{{ route('admin.bookings.create') }}" class="btn btn-primary">Add New Booking</a>
+            <a id="addNewBookingBtn" href="{{ route('admin.bookings.create') }}" class="btn btn-primary">Add New
+                Booking</a>
             <a href="{{ route('admin.bookings.logs') }}" class="btn btn-info ml-2">Show Booking Log</a>
         </div>
     </div>
@@ -23,8 +24,8 @@
                         </li>
                         <form method="GET" action="{{ route('admin.booking') }}">
                             <div class="mb-1 ml-2">
-                                <x-text-input id="search" name="search" type="text" placeholder="Search booking..."
-                                    :value="request('search')" class="form-control" />
+                                <x-text-input id="search" name="search" type="text"
+                                    placeholder="Search booking..." :value="request('search')" class="form-control" />
                                 <x-input-error :messages="$errors->get('search')" class="mt-2" />
                             </div>
                         </form>
@@ -50,6 +51,7 @@
                                             <th>Paid</th>
                                             <th>Quota Filled</th>
                                             <th>Booking Code</th>
+                                            <th>QR Code</th> <!-- Menambahkan kolom QR Code -->
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -59,12 +61,22 @@
                                                 <td>{{ $booking['class_name'] }}</td>
                                                 <td>{{ $booking['coach_name'] }}</td>
                                                 <td>{{ $booking['member_name'] }}</td>
-                                                <td>{{ $booking['day_of_week'] }} at {{ $booking['start_time'] }} - {{ $booking['end_time'] }}</td>
+                                                <td>{{ $booking['day_of_week'] }} at {{ $booking['start_time'] }} -
+                                                    {{ $booking['end_time'] }}</td>
                                                 <td>{{ $booking['booking_date'] }}</td>
                                                 <td>${{ $booking['amount'] }}</td>
                                                 <td>{{ $booking['paid'] }}</td>
                                                 <td>{{ $booking['quota_filled'] }} / {{ $booking['quota'] }}</td>
                                                 <td>{{ $booking['booking_code'] }}</td>
+                                                <td>
+                                                    <!-- Tombol untuk membuka modal QR Code -->
+                                                    <button class="btn btn-info" data-bs-toggle="modal"
+                                                        data-bs-target="#qrCodeModal"
+                                                        data-booking-code="{{ $booking['booking_code'] }}">
+                                                        Show QR Code
+                                                    </button>
+                                                </td>
+
                                                 <td>
                                                     <a href="{{ route('admin.bookings.edit', $booking['id']) }}"
                                                         class="btn btn-warning">Edit</a>
@@ -81,6 +93,26 @@
                                     </tbody>
                                 </table>
                             @endif
+                        </div>
+                        <!-- Modal -->
+                        <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel"
+                            aria-hidden="true">
+                            <div class="modal-dialog modal-sm">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="qrCodeModalLabel">QR Code</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div id="qrCodeContent"></div> <!-- Tempat untuk menampilkan QR Code -->
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Coach bookings tab -->
@@ -107,8 +139,12 @@
                                                 <td>{{ $booking->coach->name }}</td>
                                                 <td>{{ $booking->member->name }}</td>
                                                 <td>{{ $booking->session_count }}</td>
-                                                <td>{{ \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d') }}</td>
-                                                <td>{{ \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i') }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d') }}
+                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i') }}
+                                                    -
+                                                    {{ \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i') }}
+                                                </td>
                                                 <td>{{ $booking->payment_required ? 'Yes' : 'No' }}</td>
                                                 <td>{{ $booking->booking_code }}</td>
                                                 <td>
@@ -159,6 +195,26 @@
                     addNewBookingBtn.setAttribute('href', '{{ route('admin.bookings.createCoach') }}');
                 }
             }
+        });
+    </script>
+    <script>
+        // Event listener untuk tombol yang memicu modal
+        document.addEventListener('DOMContentLoaded', function() {
+            const qrCodeModal = document.getElementById('qrCodeModal');
+            qrCodeModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget; // Tombol yang memicu modal
+                const bookingCode = button.getAttribute('data-booking-code'); // Ambil booking code
+
+                // Fetch QR code dari server
+                fetch(`{{ route('generate.qr.code', '') }}/${bookingCode}`)
+                    .then(response => response.text())
+                    .then(qrCodeHtml => {
+                        document.getElementById('qrCodeContent').innerHTML = qrCodeHtml;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching QR code:', error);
+                    });
+            });
         });
     </script>
 </x-appadmin-layout>
