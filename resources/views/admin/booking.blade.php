@@ -76,7 +76,6 @@
                                                         Show QR Code
                                                     </button>
                                                 </td>
-
                                                 <td>
                                                     <a href="{{ route('admin.bookings.edit', $booking['id']) }}"
                                                         class="btn btn-warning">Edit</a>
@@ -114,8 +113,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Coach bookings tab -->
                         <div class="tab-pane fade" id="coach-bookings" role="tabpanel" aria-labelledby="coach-tab">
                             @if ($coachBookings->isEmpty())
                                 <p>No coach bookings found.</p>
@@ -169,6 +166,7 @@
             </div>
         </div>
     </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var addNewBookingBtn = document.getElementById('addNewBookingBtn');
@@ -205,16 +203,17 @@
                 const button = event.relatedTarget; // Tombol yang memicu modal
                 const bookingCode = button.getAttribute('data-booking-code'); // Ambil booking code
 
-                // Fetch QR code dari server
-                fetch(`{{ route('generate.qr.code', '') }}/${bookingCode}`)
-                    .then(response => response.text())
-                    .then(qrCodeHtml => {
-                        document.getElementById('qrCodeContent').innerHTML = qrCodeHtml;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching QR code:', error);
-                    });
+                // Generate QR code dan tampilkan di modal
+                const qrCodeHtml = generateQRCode(bookingCode);
+                document.getElementById('qrCodeContent').innerHTML = qrCodeHtml;
             });
         });
+
+        // Fungsi untuk menghasilkan QR code
+        function generateQRCode(bookingCode) {
+            // Ganti dengan URL path yang sesuai jika perlu
+            const qrCodeUrl = `/qrcodes/QR-${bookingCode}.png`; // Asumsi QR code disimpan di folder qrcodes
+            return `<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: auto;">`;
+        }
     </script>
 </x-appadmin-layout>

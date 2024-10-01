@@ -32,7 +32,7 @@
                                 'Saturday' => 'Saturday',
                             ];
                         @endphp
-                        <table class="table">
+                        <table class="table" >
                             <thead>
                                 <tr>
                                     <th>Class Image</th>

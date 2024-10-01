@@ -71,7 +71,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('bookings/{id}/edit', [AdminController::class, 'editBooking'])->name('bookings.edit');
         Route::put('bookings/{id}', [AdminController::class, 'updateBooking'])->name('bookings.update');
         Route::delete('bookings/{id}', [AdminController::class, 'destroyBooking'])->name('bookings.destroy');
-        Route::post('/scan-qr/{id}', [AdminController::class, 'scanQrCodeBook'])->name('scan.qr');
+        Route::post('/bookings/{id}/scan', [AdminController::class, 'scanQRCodeBook']);
 
         // Route untuk menampilkan halaman pembayaran
         Route::get('/payment/{booking}', [AdminController::class, 'showPayment'])->name('payment.show');
@@ -104,11 +104,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
         // Route untuk memproses QR code
         Route::post('/attendance/scan', [AdminController::class, 'scanQrCode'])->name('attendance.scan');
 
-        //Rute Manage Request Pending
-        Route::get('request', [AdminController::class, 'pendingRequests'])->name('admin.request');
-        Route::get('request/{id}', [AdminController::class, 'showRequest'])->name('admin.request.show');
-        Route::patch('request/{id}/approve', [AdminController::class, 'approveRequest'])->name('admin.request.approve');
-        Route::patch('request/{id}/reject', [AdminController::class, 'rejectRequest'])->name('admin.request.reject');
+
         //LOG
         Route::get('classes/logs', [AdminController::class, 'showLogs'])->name('classes.logs');
         Route::get('users/logs', [AdminController::class, 'showUserLogs'])->name('users.logs');
@@ -123,6 +119,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
 Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/coach/dashboard', [CoachController::class, 'index'])->name('coach.dashboard');
     Route::get('/api/coach/classes', [AdminController::class, 'getClasses']);
+    Route::get('/api/coach/coach-bookings', [AdminController::class, 'getCoachBookings']);
+
 
 
     Route::prefix('coach')->name('coach.')->group(function () {
@@ -151,9 +149,6 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
 });
 
 
-Route::get('/generate-qr-code/{bookingCode}', function ($bookingCode) {
-    return FacadesQrCode::size(250)->generate($bookingCode);
-})->name('generate.qr.code');
 
 Route::get('/dashboard', function () {
     return view('dashboard');

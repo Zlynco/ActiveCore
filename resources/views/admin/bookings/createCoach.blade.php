@@ -8,7 +8,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <form action="{{ route('admin.bookings.storeCoach') }}" method="POST">
+                    <form action="{{ route('admin.bookings.storeCoach') }}" method="POST" onsubmit="return validateBookingTime()">
                         @csrf
                         <div class="form-group">
                             <label for="coach_id">Coach</label>
@@ -25,11 +25,11 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="start_booking_time">Booking Time</label>
+                            <label for="start_booking_time">Start Booking Time</label>
                             <input type="time" name="start_booking_time" id="start_booking_time" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label for="end_booking_time">Booking Time</label>
+                            <label for="end_booking_time">End Booking Time</label>
                             <input type="time" name="end_booking_time" id="end_booking_time" class="form-control" required>
                         </div>
 
@@ -39,6 +39,24 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function validateBookingTime() {
+            const startTime = document.getElementById('start_booking_time').value;
+            const endTime = document.getElementById('end_booking_time').value;
+
+            if (startTime >= endTime) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'End time must be later than start time.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                return false; // Mencegah pengiriman formulir
+            }
+            return true; // Mengizinkan pengiriman formulir
+        }
+    </script>
 
     <!-- SweetAlert Alerts -->
     @if (session('success'))
