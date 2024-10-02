@@ -33,16 +33,78 @@ class CoachController extends Controller
     {
         // Ambil data coach yang sedang login
         $coach = Auth::user();
-
-        // Contoh: Ambil kelas yang harus diajar oleh coach
-        $classes = Classes::where('coach_id', $coach->id)->get();
-
+    
+        // Peta konversi hari dari bahasa Inggris ke bahasa Indonesia
+        $daysOfWeek = [
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+        ];
+    
+        // Ambil hari ini dalam bahasa Inggris dan ubah ke bahasa Indonesia
+        $dayOfWeek = $daysOfWeek[now()->format('l')];
+    
+        // Ambil kelas yang harus diajar dan semua booking untuk coach ini
+        $currentDate = now()->toDateString();
+        $classes = Classes::where('coach_id', $coach->id)
+            ->where('day_of_week', $dayOfWeek)
+            ->get();
+    
+        $bookings = CoachBooking::where('coach_id', $coach->id)
+            ->where('booking_date', $currentDate)
+            ->get();
+    
+        // Cek status ketersediaan
+        $current_time = now()->setTimezone('Asia/Jakarta');
+        $availabilityStatus = false; // Asumsikan tersedia
+    
+        // Gabungkan kelas dan booking untuk cek waktu
+        $ongoing = [];
+    
+        foreach ($bookings as $booking) {
+            $start_booking_time = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->start_booking_time);
+            $end_booking_time = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->end_booking_time);
+    
+            if ($current_time->between($start_booking_time, $end_booking_time)) {
+                $availabilityStatus = false;
+                $ongoing[] = [
+                    'type' => 'Booking',
+                    'date' => $booking->booking_date,
+                    'time' => $booking->start_booking_time . ' - ' . $booking->end_booking_time,
+                ];
+                break; // Keluar dari loop jika sudah ada booking yang ditemukan
+            }
+        }
+    
+        foreach ($classes as $class) {
+            $start_class_time = \Carbon\Carbon::parse(now()->format('Y-m-d') . ' ' . $class->start_time);
+            $end_class_time = \Carbon\Carbon::parse(now()->format('Y-m-d') . ' ' . $class->end_time);
+    
+            if ($current_time->between($start_class_time, $end_class_time)) {
+                $availabilityStatus = false;
+                $ongoing[] = [
+                    'type' => 'Class',
+                    'name' => $class->name,
+                    'time' => $class->start_time . ' - ' . $class->end_time,
+                ];
+                break; // Keluar dari loop jika sudah ada kelas yang ditemukan
+            }
+        }
+    
         // Kirim data ke view dashboard coach
         return view('coach.dashboard', [
             'coach' => $coach,
             'classes' => $classes,
+            'bookings' => $bookings,
+            'availabilityStatus' => $availabilityStatus,
+            'ongoing' => $ongoing,
         ]);
     }
+    
     public function coachClasses(Request $request)
     {
         // Ambil user yang sedang login
@@ -54,39 +116,39 @@ class CoachController extends Controller
     }
 
     public function showCoachBookings(Request $request)
-{
-    // Ambil user yang sedang login
-    $coach = auth()->user();
+    {
+        // Ambil user yang sedang login
+        $coach = auth()->user();
 
-    // Ambil parameter pencarian dari query string
-    $search = $request->input('search');
+        // Ambil parameter pencarian dari query string
+        $search = $request->input('search');
 
-    // Ambil booking yang dibuat oleh member untuk coach ini
-    $query = CoachBooking::where('coach_id', $coach->id);
+        // Ambil booking yang dibuat oleh member untuk coach ini
+        $query = CoachBooking::where('coach_id', $coach->id);
 
-    if ($search) {
-        // Filter berdasarkan kode booking atau nama member
-        $query->where(function ($q) use ($search) {
-            $q->where('booking_code', 'LIKE', "%{$search}%")
-                ->orWhereHas('user', function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%");
-                });
-        });
+        if ($search) {
+            // Filter berdasarkan kode booking atau nama member
+            $query->where(function ($q) use ($search) {
+                $q->where('booking_code', 'LIKE', "%{$search}%")
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%");
+                    });
+            });
+        }
+
+        // Urutkan data berdasarkan booking_date dan booking_time secara descending (terbaru ke terlama)
+        $bookings = $query->orderBy('booking_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Konversi booking_date dan booking_time menjadi Carbon object
+        foreach ($bookings as $booking) {
+            $booking->booking_date = Carbon::parse($booking->booking_date);
+            $booking->booking_time = Carbon::parse($booking->booking_time);
+        }
+
+        return view('coach.booking', compact('bookings'));
     }
-
-    // Urutkan data berdasarkan booking_date dan booking_time secara descending (terbaru ke terlama)
-    $bookings = $query->orderBy('booking_date', 'desc')
-                      ->orderBy('created_at', 'desc')
-                      ->get();
-
-    // Konversi booking_date dan booking_time menjadi Carbon object
-    foreach ($bookings as $booking) {
-        $booking->booking_date = Carbon::parse($booking->booking_date);
-        $booking->booking_time = Carbon::parse($booking->booking_time);
-    }
-
-    return view('coach.booking', compact('bookings'));
-}
 
 
     public function coachAbsen(Request $request)
@@ -101,151 +163,151 @@ class CoachController extends Controller
         return view('coach.attendance', compact('classes', 'classesList'));
     }
     public function storeAttendance(Request $request)
-{
-    // Validasi input
-    $request->validate([
-        'class_id' => 'nullable|string',
-        'attendance_date' => 'required|date',
-        'status' => 'required|in:Present,Sick,Excused,Absent',
-        'check_in' => 'nullable|date_format:H:i',
-        'check_out' => 'nullable|date_format:H:i',
-        'absence_reason' => 'nullable|string',
-    ]);
-
-    // Cek apakah sudah ada absensi untuk kelas dan tanggal yang sama
-    $existingAttendance = Attendance::where('user_id', Auth::id())
-        ->where('class_id', $request->class_id === 'No Class' ? null : $request->class_id)
-        ->where('attendance_date', $request->attendance_date)
-        ->first();
-
-    if ($existingAttendance) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Attendance for this class on this date has already been recorded.',
+    {
+        // Validasi input
+        $request->validate([
+            'class_id' => 'nullable|string',
+            'attendance_date' => 'required|date',
+            'status' => 'required|in:Present,Sick,Excused,Absent',
+            'check_in' => 'nullable|date_format:H:i',
+            'check_out' => 'nullable|date_format:H:i',
+            'absence_reason' => 'nullable|string',
         ]);
+
+        // Cek apakah sudah ada absensi untuk kelas dan tanggal yang sama
+        $existingAttendance = Attendance::where('user_id', Auth::id())
+            ->where('class_id', $request->class_id === 'No Class' ? null : $request->class_id)
+            ->where('attendance_date', $request->attendance_date)
+            ->first();
+
+        if ($existingAttendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance for this class on this date has already been recorded.',
+            ]);
+        }
+
+        // Buat kode unik untuk absensi
+        $uniqueCode = 'ATT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+
+        try {
+            // Simpan absensi
+            Attendance::create([
+                'user_id' => Auth::id(),
+                'class_id' => $request->class_id === 'No Class' ? null : $request->class_id,
+                'attendance_date' => $request->attendance_date,
+                'status' => $request->status,
+                'check_in' => $request->check_in,
+                'check_out' => $request->check_out,
+                'absence_reason' => $request->absence_reason,
+                'unique_code' => $uniqueCode,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance recorded successfully.',
+                'redirect' => route('coach.attendance'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record attendance. ' . $e->getMessage(),
+            ]);
+        }
+    }
+    public function showMemberAttendance()
+    {
+        // Mengambil data attendance member yang berelasi
+        $memberAttendances = MemberAttendance::with(['booking', 'member', 'coach'])
+            ->whereHas('booking', function ($query) {
+                $query->where('coach_id', auth()->user()->id); // Hanya mengambil booking untuk coach yang login
+            })
+            ->get();
+
+        return view('coach.memberatt', compact('memberAttendances')); // Pastikan variabel dikirim
+    }
+    public function createMemberAttendance()
+    {
+        // Mengambil booking yang terkait dengan coach yang sedang login
+        $bookings = CoachBooking::whereHas('coach', function ($query) {
+            $query->where('id', auth()->id());
+        })->whereHas('user')->get();
+
+        return view('coach.attendances.create', compact('bookings'));
     }
 
-    // Buat kode unik untuk absensi
-    $uniqueCode = 'ATT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-
-    try {
-        // Simpan absensi
-        Attendance::create([
-            'user_id' => Auth::id(),
-            'class_id' => $request->class_id === 'No Class' ? null : $request->class_id,
-            'attendance_date' => $request->attendance_date,
-            'status' => $request->status,
-            'check_in' => $request->check_in,
-            'check_out' => $request->check_out,
-            'absence_reason' => $request->absence_reason,
-            'unique_code' => $uniqueCode,
+    public function storeMemberAttendance(Request $request)
+    {
+        $request->validate([
+            'booking_id' => 'required|exists:coach_bookings,id',
+            'member_id' => 'required|exists:users,id',
+            'attendance_date' => 'required|date',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Attendance recorded successfully.',
-            'redirect' => route('coach.attendance'),
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to record attendance. ' . $e->getMessage(),
-        ]);
-    }
-}
-public function showMemberAttendance()
-{
-    // Mengambil data attendance member yang berelasi
-    $memberAttendances = MemberAttendance::with(['booking', 'member', 'coach'])
-        ->whereHas('booking', function ($query) {
-            $query->where('coach_id', auth()->user()->id); // Hanya mengambil booking untuk coach yang login
-        })
-        ->get();
+        $qrCodeData = 'member-' . $request->member_id . '-booking-' . $request->booking_id;
+        $qrCodePath = public_path('qrcodes/QR-' . $qrCodeData . '.png');
 
-    return view('coach.memberatt', compact('memberAttendances')); // Pastikan variabel dikirim
-}
-public function createMemberAttendance()
-{
-    // Mengambil booking yang terkait dengan coach yang sedang login
-    $bookings = CoachBooking::whereHas('coach', function ($query) {
-        $query->where('id', auth()->id());
-    })->whereHas('user')->get();
+        // Membuat direktori jika belum ada
+        if (!File::exists(public_path('qrcodes'))) {
+            File::makeDirectory(public_path('qrcodes'), 0755, true);
+        }
 
-    return view('coach.attendances.create', compact('bookings'));
-}
+        // Menghasilkan QR Code
+        QrCode::format('png')->size(300)->generate($qrCodeData, $qrCodePath);
 
-public function storeMemberAttendance(Request $request)
-{
-    $request->validate([
-        'booking_id' => 'required|exists:coach_bookings,id',
-        'member_id' => 'required|exists:users,id',
-        'attendance_date' => 'required|date',
-    ]);
+        // Menyimpan absensi member ke database dengan coach_id dari yang sedang login
+        MemberAttendance::create(array_merge($request->all(), [
+            'unique_code' => $qrCodeData,
+            'coach_id' => Auth::id(), // Menambahkan coach_id dari user yang sedang login
+        ]));
 
-    $qrCodeData = 'member-' . $request->member_id . '-booking-' . $request->booking_id;
-    $qrCodePath = public_path('qrcodes/QR-' . $qrCodeData . '.png');
+        Log::channel('attendance')->info('Member Attendance created successfully with QR Code.', ['qr_code' => $qrCodeData]);
 
-    // Membuat direktori jika belum ada
-    if (!File::exists(public_path('qrcodes'))) {
-        File::makeDirectory(public_path('qrcodes'), 0755, true);
+        return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance created successfully with QR Code.');
     }
 
-    // Menghasilkan QR Code
-    QrCode::format('png')->size(300)->generate($qrCodeData, $qrCodePath);
+    public function editMemberAttendance($id)
+    {
+        $attendance = MemberAttendance::findOrFail($id);
 
-    // Menyimpan absensi member ke database dengan coach_id dari yang sedang login
-    MemberAttendance::create(array_merge($request->all(), [
-        'unique_code' => $qrCodeData,
-        'coach_id' => Auth::id(), // Menambahkan coach_id dari user yang sedang login
-    ]));
+        // Mengambil booking untuk coach yang sedang login
+        $bookings = CoachBooking::whereHas('coach', function ($query) {
+            $query->where('id', auth()->id());
+        })->whereHas('user')->get();
 
-    Log::channel('attendance')->info('Member Attendance created successfully with QR Code.', ['qr_code' => $qrCodeData]);
+        return view('coach.attendances.edit', compact('attendance', 'bookings'));
+    }
 
-    return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance created successfully with QR Code.');
-}
+    // Method untuk memperbarui data absensi member
+    public function updateMemberAttendance(Request $request, $id)
+    {
+        $request->validate([
+            'booking_id' => 'required|exists:coach_bookings,id',
+            'attendance_date' => 'required|date',
+            'status' => 'required|in:Present,Absent,Not Yet',
+        ]);
 
-public function editMemberAttendance($id)
-{
-    $attendance = MemberAttendance::findOrFail($id);
+        $attendance = MemberAttendance::findOrFail($id);
 
-    // Mengambil booking untuk coach yang sedang login
-    $bookings = CoachBooking::whereHas('coach', function ($query) {
-        $query->where('id', auth()->id());
-    })->whereHas('user')->get();
+        // Hanya memperbarui booking_id, attendance_date, dan status
+        $attendance->update($request->only('booking_id', 'attendance_date', 'status'));
 
-    return view('coach.attendances.edit', compact('attendance', 'bookings'));
-}
+        Log::channel('attendance')->info('Updated member attendance record with ID: ' . $id);
 
-// Method untuk memperbarui data absensi member
-public function updateMemberAttendance(Request $request, $id)
-{
-    $request->validate([
-        'booking_id' => 'required|exists:coach_bookings,id',
-        'attendance_date' => 'required|date',
-        'status' => 'required|in:Present,Absent,Not Yet',
-    ]);
-
-    $attendance = MemberAttendance::findOrFail($id);
-    
-    // Hanya memperbarui booking_id, attendance_date, dan status
-    $attendance->update($request->only('booking_id', 'attendance_date', 'status'));
-
-    Log::channel('attendance')->info('Updated member attendance record with ID: ' . $id);
-
-    return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance updated successfully.');
-}
+        return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance updated successfully.');
+    }
 
 
-// Method untuk menghapus absensi member
-public function destroyMemberAttendance($id)
-{
-    $attendance = MemberAttendance::findOrFail($id);
-    $attendance->delete();
+    // Method untuk menghapus absensi member
+    public function destroyMemberAttendance($id)
+    {
+        $attendance = MemberAttendance::findOrFail($id);
+        $attendance->delete();
 
-    Log::channel('attendance')->info('Deleted member attendance record with ID: ' . $id);
+        Log::channel('attendance')->info('Deleted member attendance record with ID: ' . $id);
 
-    return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance deleted successfully.');
-}
+        return redirect()->route('coach.memberAttendance')->with('success', 'Member Attendance deleted successfully.');
+    }
 
     // Method untuk memindai QR Code dan memperbarui absensi
     public function scanQrCode(Request $request)
@@ -270,33 +332,22 @@ public function destroyMemberAttendance($id)
 
         return back()->with('success', 'Absensi berhasil diperbarui.');
     }
-    
-    public function checkAvailability($coachId, $date)
-    {
-        // Temukan coach berdasarkan ID
-        $coach = User::findOrFail($coachId);
 
-        // Periksa apakah coach memiliki kelas atau booking pada tanggal yang diberikan
-        $hasClassOnDate = $coach->classes()->whereDate('date', $date)->exists();
-        $hasBookingOnDate = $coach->bookings()->whereDate('date', $date)->exists();
-
-        return !$hasClassOnDate && !$hasBookingOnDate;
-    }
     public function getClasses()
     {
         // Ambil data coach yang sedang login
         $coach = Auth::user();
-    
+
         // Ambil kelas yang harus diajar oleh coach
         $classes = Classes::where('coach_id', $coach->id)->get();
-    
+
         // Format data untuk API
         $events = [];
-    
+
         foreach ($classes as $class) {
             // Mendapatkan tanggal kelas berikutnya
             $nextClassDate = $this->getNextClassDate($class->day_of_week);
-    
+
             // Menghitung start dan end berdasarkan tanggal kelas berikutnya
             $events[] = [
                 'title' => $class->name,
@@ -305,9 +356,7 @@ public function destroyMemberAttendance($id)
                 'quota' => $class->quota,
             ];
         }
-    
+
         return response()->json($events);
     }
-    
-    
 }

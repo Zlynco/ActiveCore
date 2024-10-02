@@ -425,83 +425,6 @@ class AdminController extends Controller
         return response()->json($events); // Mengembalikan data dalam format JSON
     }
 
-    private function updateCoachAvailabilityClass($coach_id, $day_of_week)
-    {
-        $today = Carbon::now(); // Hari ini
-        $todayDayOfWeek = $today->format('l'); // Ambil nama hari dalam format lengkap
-
-        // Cek apakah ada kelas untuk coach pada hari ini
-        $hasClassToday = Classes::where('coach_id', $coach_id)
-            ->where('day_of_week', $todayDayOfWeek)
-            ->exists();
-
-        // Jika ada kelas hari ini, set coach menjadi unavailable
-        if ($hasClassToday) {
-            User::where('id', $coach_id)->update(['availability_status' => 0]);
-        } else {
-            // Cek apakah ada kelas yang dijadwalkan di masa depan
-            $nextClassDate = $this->getNextClassDate($day_of_week);
-
-
-            // Jika tidak ada kelas hari ini dan ada kelas di masa depan, set coach menjadi available
-            if ($today->isSameDay($nextClassDate)) {
-                User::where('id', $coach_id)->update(['availability_status' => 0]);
-            } else {
-                User::where('id', $coach_id)->update(['availability_status' => 1]);
-            }
-        }
-    }
-
-
-    public function updateCoachAvailabilityBooking($coach_id, $bookingDate = null)
-    {
-        // Cek apakah coach_id dan bookingDate tidak kosong
-        if (empty($coach_id)) {
-            Log::channel('booking')->warning('Coach ID tidak diberikan.', ['coach_id' => $coach_id]);
-            return;
-        }
-
-        // Format tanggal untuk pencarian
-        $bookingDate = $bookingDate ? Carbon::parse($bookingDate)->format('Y-m-d') : null;
-
-        $coach = User::find($coach_id);
-
-        if (!$coach) {
-            Log::channel('booking')->warning('Coach tidak ditemukan.', ['coach_id' => $coach_id]);
-            return;
-        }
-
-        // Cek apakah ada booking pada tanggal hari ini
-        $hasBookingToday = CoachBooking::where('coach_id', $coach_id)
-            ->whereDate('booking_date', now()->format('Y-m-d'))
-            ->exists();
-
-        // Cek apakah ada booking di masa depan
-        $hasUpcomingBooking = CoachBooking::where('coach_id', $coach_id)
-            ->whereDate('booking_date', '>', now()->format('Y-m-d'))
-            ->exists();
-
-        // Update ketersediaan coach
-        if ($hasBookingToday && $bookingDate === now()->format('Y-m-d')) {
-            // Jika ada booking hari ini, tandai coach sebagai unavailable
-            $coach->availability_status = 0;
-        } elseif ($hasUpcomingBooking) {
-            // Jika ada booking mendatang, tandai coach sebagai available
-            $coach->availability_status = 1;
-        } else {
-            // Jika tidak ada booking, tandai coach sebagai available
-            $coach->availability_status = 1;
-        }
-
-        $coach->save();
-
-        Log::channel('booking')->info('Ketersediaan coach diperbarui.', [
-            'coach_id' => $coach_id,
-            'availability_status' => $coach->availability_status,
-            'booking_date' => $bookingDate,
-        ]);
-    }
-
     public function getNextClassDate($dayOfWeek)
     {
         // Hari ini
@@ -1018,20 +941,34 @@ class AdminController extends Controller
         return redirect()->back()->with('error', 'Coach is already booked for the selected date and time.')->withInput();
     }
 
-    // 2. Cek apakah coach memiliki kelas pada hari booking
-    $classSchedule = Classes::where('coach_id', $coachId)
-        ->where('day_of_week', $bookingDate->format('l')) // Cek hari kelas
-        ->first();
+    // 2. Ambil nama hari dari tanggal booking yang dipilih
+    $daysOfWeek = [
+        'Sunday' => 'Minggu',
+        'Monday' => 'Senin',
+        'Tuesday' => 'Selasa',
+        'Wednesday' => 'Rabu',
+        'Thursday' => 'Kamis',
+        'Friday' => 'Jumat',
+        'Saturday' => 'Sabtu',
+    ];
+    $dayOfWeekEnglish = $bookingDate->format('l'); // Ambil nama hari dalam bahasa Inggris (contoh: 'Monday')
+    $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish]; // Ubah ke bahasa Indonesia (contoh: 'Senin')
 
-    // Jika ada kelas, periksa apakah waktu booking bentrok
-    if ($classSchedule) {
-        $classStartTime = $classSchedule->start_time; // Waktu mulai kelas
-        $classEndTime = $classSchedule->end_time; // Waktu selesai kelas
+    // 3. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
+    $hasClass = Classes::where('coach_id', $coachId)
+        ->where('day_of_week', $dayOfWeek) // Cocokkan hari
+        ->where(function ($query) use ($startBookingTime, $endBookingTime) {
+            $query->whereBetween('start_time', [$startBookingTime, $endBookingTime])
+                ->orWhereBetween('end_time', [$startBookingTime, $endBookingTime])
+                ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
+                    $q->where('start_time', '<=', $startBookingTime)
+                        ->where('end_time', '>=', $endBookingTime);
+                });
+        })
+        ->exists();
 
-        // Memeriksa apakah waktu booking bentrok dengan waktu kelas
-        if ($startBookingTime < $classEndTime && $endBookingTime > $classStartTime) {
-            return redirect()->back()->with('error', 'Coach is not available on this date due to a scheduled class.')->withInput();
-        }
+    if ($hasClass) {
+        return redirect()->back()->with('error', 'Coach has a class scheduled during the selected time.')->withInput();
     }
 
     // Buat booking baru jika semua validasi lolos
@@ -1070,7 +1007,8 @@ class AdminController extends Controller
     ]);
 
     return redirect()->route('admin.booking')->with('success', 'Coach booked successfully!');
-}   
+}
+
 
     public function editCoachBooking($id)
     {
@@ -1431,60 +1369,69 @@ class AdminController extends Controller
         return view('admin.attendances.logs', compact('logs'));
     }
     public function getClasses()
-    {
-        // Ambil data coach yang sedang login
-        $coach = Auth::user();
+{
+    // Ambil data coach yang sedang login
+    $coach = Auth::user();
 
-        // Ambil kelas yang harus diajar oleh coach
-        $classes = Classes::where('coach_id', $coach->id)->get();
+    // Ambil kelas yang harus diajar oleh coach
+    $classes = Classes::where('coach_id', $coach->id)->get();
 
-        // Format data untuk API
-        $events = [];
+    // Format data untuk API
+    $events = [];
 
-        // Tentukan periode waktu untuk kelas yang akan datang
-        $today = now();
-        $endDate = now()->addMonth(); // Misalnya, satu bulan ke depan
+    // Tentukan periode waktu untuk kelas yang akan datang
+    $today = now();
+    $endDate = now()->addMonth(); // Misalnya, satu bulan ke depan
+    $oneWeekAgo = now()->subWeek(); // Satu minggu yang lalu
 
-        foreach ($classes as $class) {
-            // Mendapatkan tanggal kelas berikutnya
-            $nextClassDate = $this->getNextClassDate($class->day_of_week);
+    foreach ($classes as $class) {
+        // Mendapatkan tanggal kelas berikutnya
+        $nextClassDate = $this->getNextClassDate($class->day_of_week);
 
-            // Loop untuk menggenerate tanggal setiap minggu
-            while ($nextClassDate <= $endDate) {
+        // Loop untuk menggenerate tanggal setiap minggu
+        while ($nextClassDate <= $endDate) {
+            // Jika tanggal kelas belum lebih dari seminggu yang lalu, tambahkan ke events
+            if ($nextClassDate >= $oneWeekAgo) {
                 $events[] = [
                     'title' => $class->name,
                     'start' => $nextClassDate->toDateString() . ' ' . $class->start_time,
                     'end' => $nextClassDate->toDateString() . ' ' . $class->end_time,
                     'quota' => $class->quota,
                 ];
-
-                // Tambahkan 7 hari untuk mendapatkan kelas berikutnya
-                $nextClassDate->addWeek();
             }
+            // Tambahkan 7 hari untuk mendapatkan kelas berikutnya
+            $nextClassDate->addWeek();
         }
-
-        return response()->json($events);
     }
-    public function getCoachBookings()
+
+    return response()->json($events);
+}
+
+    public function getCoachBookings(Request $request)
     {
-        // Ambil data user yang sedang login
-        $userId = Auth::id();
+        // Ambil ID coach dari yang sedang login
+        $coachId = auth()->user()->id;
     
-        // Ambil semua booking untuk coach
-        $bookings = CoachBooking::where('user_id', $userId)->get();
+        $bookings = CoachBooking::with(['coach', 'member']) // Pastikan untuk memuat relasi dengan member
+            ->where('coach_id', $coachId) // Filter berdasarkan ID coach yang sedang login
+            ->where('booking_date', '>=', now()) // Mengambil booking yang akan datang
+            ->get();
     
-        // Format data untuk API
-        $events = $bookings->map(function ($booking) {
+        // Format data untuk FullCalendar
+        $formattedBookings = $bookings->map(function($booking) {
             return [
-                'title' => 'Booking with Coach ID ' . $booking->coach_id,
-                'start' => $booking->booking_date . ' ' . $booking->start_booking_time,
-                'end' => $booking->booking_date . ' ' . $booking->end_booking_time,
-                // Anda bisa menambahkan properti tambahan di sini
+                'title' => 'Booked with ' . $booking->member->name, // Tampilkan nama member
+                'start' => $booking->booking_date . 'T' . $booking->start_booking_time,
+                'end' => $booking->booking_date . 'T' . $booking->end_booking_time,
+                'extendedProps' => [
+                    'coach' => $booking->coach->name,
+                    'member' => $booking->member->name, // Menyimpan nama member
+                    'session_count' => $booking->session_count,
+                ],
             ];
         });
     
-        return response()->json($events);
+        return response()->json($formattedBookings);
     }
     
-
 }
