@@ -120,6 +120,8 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/coach/dashboard', [CoachController::class, 'index'])->name('coach.dashboard');
     Route::get('/api/coach/classes', [AdminController::class, 'getClasses']);
     Route::get('/api/coach/coach-bookings', [AdminController::class, 'getCoachBookings']);
+    Route::get('/coach/check-availability', [CoachController::class, 'checkAvailability']);
+
 
 
 

@@ -33,7 +33,7 @@ class CoachController extends Controller
     {
         // Ambil data coach yang sedang login
         $coach = Auth::user();
-    
+
         // Peta konversi hari dari bahasa Inggris ke bahasa Indonesia
         $daysOfWeek = [
             'Sunday' => 'Minggu',
@@ -44,67 +44,85 @@ class CoachController extends Controller
             'Friday' => 'Jumat',
             'Saturday' => 'Sabtu',
         ];
-    
+
         // Ambil hari ini dalam bahasa Inggris dan ubah ke bahasa Indonesia
         $dayOfWeek = $daysOfWeek[now()->format('l')];
-    
-        // Ambil kelas yang harus diajar dan semua booking untuk coach ini
-        $currentDate = now()->toDateString();
+
+        // Ambil kelas yang harus diajar untuk hari ini
         $classes = Classes::where('coach_id', $coach->id)
             ->where('day_of_week', $dayOfWeek)
             ->get();
-    
+
+        // Ambil booking yang berlaku untuk hari ini
         $bookings = CoachBooking::where('coach_id', $coach->id)
-            ->where('booking_date', $currentDate)
+            ->where('coach_id', $coach->id)
+            ->whereDate('booking_date', now()->toDateString())
             ->get();
-    
-        // Cek status ketersediaan
-        $current_time = now()->setTimezone('Asia/Jakarta');
-        $availabilityStatus = false; // Asumsikan tersedia
-    
-        // Gabungkan kelas dan booking untuk cek waktu
-        $ongoing = [];
-    
-        foreach ($bookings as $booking) {
-            $start_booking_time = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->start_booking_time);
-            $end_booking_time = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->end_booking_time);
-    
-            if ($current_time->between($start_booking_time, $end_booking_time)) {
-                $availabilityStatus = false;
-                $ongoing[] = [
-                    'type' => 'Booking',
-                    'date' => $booking->booking_date,
-                    'time' => $booking->start_booking_time . ' - ' . $booking->end_booking_time,
-                ];
-                break; // Keluar dari loop jika sudah ada booking yang ditemukan
-            }
-        }
-    
+
+        // Tentukan ketersediaan dan detail kelas atau booking yang sedang berlangsung
+        $isAvailable = true;
+        $currentClass = null;
+        $currentBooking = null;
+        $currentTime = now()->format('H:i');
+
         foreach ($classes as $class) {
-            $start_class_time = \Carbon\Carbon::parse(now()->format('Y-m-d') . ' ' . $class->start_time);
-            $end_class_time = \Carbon\Carbon::parse(now()->format('Y-m-d') . ' ' . $class->end_time);
-    
-            if ($current_time->between($start_class_time, $end_class_time)) {
-                $availabilityStatus = false;
-                $ongoing[] = [
-                    'type' => 'Class',
-                    'name' => $class->name,
-                    'time' => $class->start_time . ' - ' . $class->end_time,
-                ];
-                break; // Keluar dari loop jika sudah ada kelas yang ditemukan
+            $startTime = \Carbon\Carbon::parse($class->start_time)->format('H:i');
+            $endTime = \Carbon\Carbon::parse($class->end_time)->format('H:i');
+
+            if ($currentTime >= $startTime && $currentTime <= $endTime) {
+                $isAvailable = false; // Jika coach sedang mengajar
+                $currentClass = $class; // Simpan kelas yang sedang berlangsung
+                break;
             }
         }
-    
+
+        if ($isAvailable) {
+            foreach ($bookings as $booking) {
+                $bookingStartTime = \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i');
+                $bookingEndTime = \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i');
+
+                if ($currentTime >= $bookingStartTime && $currentTime <= $bookingEndTime) {
+                    $isAvailable = false; // Jika ada booking aktif
+                    $currentBooking = $booking; // Simpan booking yang sedang berlangsung
+                    break;
+                }
+            }
+        }
+
         // Kirim data ke view dashboard coach
         return view('coach.dashboard', [
             'coach' => $coach,
             'classes' => $classes,
             'bookings' => $bookings,
-            'availabilityStatus' => $availabilityStatus,
-            'ongoing' => $ongoing,
+            'isAvailable' => $isAvailable, // Status ketersediaan
+            'currentClass' => $currentClass, // Detail kelas yang sedang berlangsung
+            'currentBooking' => $currentBooking, // Detail booking yang sedang berlangsung
         ]);
     }
-    
+
+
+    public function checkAvailability()
+    {
+        $coach = Auth::user();
+        $currentTime = now();
+
+        $bookings = CoachBooking::where('coach_id', $coach->id)
+            ->where('booking_date', now()->toDateString())
+            ->get();
+
+        foreach ($bookings as $booking) {
+            $startBookingTime = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->start_booking_time);
+            $endBookingTime = \Carbon\Carbon::parse($booking->booking_date . ' ' . $booking->end_booking_time);
+
+            if ($currentTime->between($startBookingTime, $endBookingTime)) {
+                return response()->json(['available' => false]);
+            }
+        }
+
+        return response()->json(['available' => true]);
+    }
+
+
     public function coachClasses(Request $request)
     {
         // Ambil user yang sedang login

@@ -10,92 +10,80 @@
 
     <!-- Content Row -->
     <div class="row">
-      <!-- Card: Upcoming Classes -->
-<div class="col-xl-6 col-md-6 mb-4">
-    <div class="card border-bottom-primary shadow h-100 py-2">
-        <div class="card-body">
-            <div class="row no-gutters align-items-center">
-                <div class="col mr-2">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                        Upcoming Classes Today
+        <!-- Kartu Upcoming Classes Today -->
+        <div class="col-xl-6 col-md-6 mb-4">
+            <div class="card border-bottom-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Upcoming Classes Today
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @if ($classes->isEmpty())
+                                    No classes scheduled for today.
+                                @else
+                                    <ul class="list-unstyled">
+                                        @foreach ($classes as $class)
+                                            <li class="mb-1">
+                                                <strong>{{ $class->name }}</strong> -
+                                                {{ \Carbon\Carbon::parse($class->start_time)->format('H:i') }} -
+                                                {{ \Carbon\Carbon::parse($class->end_time)->format('H:i') }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                        </div>
                     </div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">
-                        @if($classes->isEmpty())
-                            No classes scheduled for today.
-                        @else
-                            <ul class="list-unstyled">
-                                @foreach($classes as $class)
-                                    <li class="mb-1">
-                                        <strong>{{ $class->name }}</strong> - 
-                                        {{ \Carbon\Carbon::parse($class->start_time)->format('H:i') }} - 
-                                        {{ \Carbon\Carbon::parse($class->end_time)->format('H:i') }}
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
-                </div>
-                <div class="col-auto">
-                    <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-
- <!-- Card: Coach Availability Status -->
+        <!-- Card: Coach Availability Status -->
 <div class="col-xl-6 col-md-6 mb-4">
-    <div class="card border-bottom-{{ $availabilityStatus ? 'success' : 'danger' }} shadow h-100 py-2">
+    <div class="card 
+        @if($isAvailable) border-bottom-success @else border-bottom-danger @endif shadow h-100 py-2">
         <div class="card-body">
             <div class="row no-gutters align-items-center">
                 <div class="col mr-2">
-                    <div class="text-xs font-weight-bold text-{{ $availabilityStatus ? 'success' : 'danger' }} text-uppercase mb-1">
+                    <div class="text-xs font-weight-bold text-uppercase mb-1">
                         Availability Status
                     </div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">
-                        {{ $availabilityStatus ? 'Available' : 'Not Available' }}
+                    <div class="h5 mb-0 font-weight-bold 
+                        @if($isAvailable) text-success @else text-danger @endif">
+                        @if($isAvailable)
+                            Available
+                        @else
+                            Not Available
+                            <br>
+                            @if($currentClass)
+                                <small>Currently teaching class.: <strong>{{ $currentClass->name }}</strong></small>
+                                <br>
+                                <small>Time: {{ \Carbon\Carbon::parse($currentClass->start_time)->format('H:i') }} - 
+                                    {{ \Carbon\Carbon::parse($currentClass->end_time)->format('H:i') }}</small>
+                            @elseif($currentBooking)
+                                <small>Currently booked by: <strong>{{ $currentBooking->user->name ?? 'N/A' }}</strong></small>
+                                <br>
+                                <small>Time: {{ \Carbon\Carbon::parse($currentBooking->start_booking_time)->format('H:i') }} - 
+                                    {{ \Carbon\Carbon::parse($currentBooking->end_booking_time)->format('H:i') }}</small>
+                            @endif
+                        @endif
                     </div>
-                    @if (!$availabilityStatus)
-                        <p class="text-danger mt-2">
-                            The coach has ongoing bookings or classes at this moment.
-                        </p>
-
-                        @if ($classes->isNotEmpty())
-                            <h6 class="mt-3">Ongoing Classes:</h6>
-                            <ul class="list-unstyled">
-                                @foreach ($classes as $class)
-                                    <li>
-                                        <strong>Class:</strong> {{ $class->name }}<br>
-                                        <strong>Time:</strong> {{ $class->start_time }} - {{ $class->end_time }}
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-
-                        @if ($bookings->isNotEmpty())
-                            <h6 class="mt-3">Ongoing Bookings:</h6>
-                            <ul class="list-unstyled">
-                                @foreach ($bookings as $booking)
-                                    <li>
-                                        <strong>Booking:</strong> {{ $booking->booking_date }}<br>
-                                        <strong>Time:</strong> {{ $booking->start_booking_time }} - {{ $booking->end_booking_time }}
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-                        @if ($classes->isEmpty() && $bookings->isEmpty())
-                            <p>No ongoing bookings or classes at this time.</p>
-                        @endif
-                    @endif
                 </div>
                 <div class="col-auto">
-                    <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                    <i class="fas fa-user-check fa-2x 
+                        @if($isAvailable) text-success @else text-danger @endif"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+
 
     </div>
 
@@ -114,6 +102,7 @@
             </div>
         </div>
     </div>
+
     <!-- Modal untuk Menampilkan Detail Kelas -->
     <div class="modal fade" id="classDetailModal" tabindex="-1" role="dialog" aria-labelledby="classDetailModalLabel"
         aria-hidden="true">
@@ -136,5 +125,7 @@
             </div>
         </div>
     </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 @endsection

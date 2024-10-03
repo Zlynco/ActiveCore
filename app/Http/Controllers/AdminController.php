@@ -1118,8 +1118,8 @@ class AdminController extends Controller
         }
         $memberAttendances = $memberAttendancesQuery->get();
 
-        return view('admin.attendance', compact('attendances', 'memberAttendances'));
-    }
+            return view('admin.attendance', compact('attendances', 'memberAttendances'));
+        }
 
 
     public function createAttendanceCoaches()
@@ -1369,44 +1369,47 @@ class AdminController extends Controller
         return view('admin.attendances.logs', compact('logs'));
     }
     public function getClasses()
-{
-    // Ambil data coach yang sedang login
-    $coach = Auth::user();
-
-    // Ambil kelas yang harus diajar oleh coach
-    $classes = Classes::where('coach_id', $coach->id)->get();
-
-    // Format data untuk API
-    $events = [];
-
-    // Tentukan periode waktu untuk kelas yang akan datang
-    $today = now();
-    $endDate = now()->addMonth(); // Misalnya, satu bulan ke depan
-    $oneWeekAgo = now()->subWeek(); // Satu minggu yang lalu
-
-    foreach ($classes as $class) {
-        // Mendapatkan tanggal kelas berikutnya
-        $nextClassDate = $this->getNextClassDate($class->day_of_week);
-
-        // Loop untuk menggenerate tanggal setiap minggu
-        while ($nextClassDate <= $endDate) {
-            // Jika tanggal kelas belum lebih dari seminggu yang lalu, tambahkan ke events
-            if ($nextClassDate >= $oneWeekAgo) {
-                $events[] = [
-                    'title' => $class->name,
-                    'start' => $nextClassDate->toDateString() . ' ' . $class->start_time,
-                    'end' => $nextClassDate->toDateString() . ' ' . $class->end_time,
-                    'quota' => $class->quota,
-                ];
+    {
+        // Ambil data coach yang sedang login
+        $coach = Auth::user();
+    
+        // Ambil kelas yang harus diajar oleh coach
+        $classes = Classes::where('coach_id', $coach->id)->get();
+    
+        // Format data untuk API
+        $events = [];
+    
+        // Tentukan periode waktu untuk kelas yang akan datang
+        $today = now();
+        $endDate = now()->addMonth(); // Misalnya, satu bulan ke depan
+        $oneWeekAgo = now()->subWeek(); // Satu minggu yang lalu
+    
+        foreach ($classes as $class) {
+            // Mendapatkan tanggal kelas berikutnya
+            $nextClassDate = $this->getNextClassDate($class->day_of_week);
+    
+            // Loop untuk menggenerate tanggal setiap minggu
+            while ($nextClassDate <= $endDate) {
+                // Jika tanggal kelas berada dalam rentang yang diinginkan
+                if ($nextClassDate >= $today) {
+                    // Jika tanggal kelas belum lebih dari seminggu yang lalu, tambahkan ke events
+                    if ($nextClassDate >= $oneWeekAgo) {
+                        $events[] = [
+                            'title' => $class->name . ' Class',
+                            'start' => $nextClassDate->toDateString() . ' ' . $class->start_time,
+                            'end' => $nextClassDate->toDateString() . ' ' . $class->end_time,
+                            'quota' => $class->quota,
+                        ];
+                    }
+                }
+                // Tambahkan 7 hari untuk mendapatkan kelas berikutnya
+                $nextClassDate->addWeek();
             }
-            // Tambahkan 7 hari untuk mendapatkan kelas berikutnya
-            $nextClassDate->addWeek();
         }
+    
+        return response()->json($events);
     }
-
-    return response()->json($events);
-}
-
+    
     public function getCoachBookings(Request $request)
     {
         // Ambil ID coach dari yang sedang login
