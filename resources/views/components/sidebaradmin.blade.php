@@ -35,7 +35,20 @@
             <span>Manage Users</span>
         </a>
     </li>
-
+    <!-- Nav Item - Manage Category -->
+    <li class="nav-item">
+        <a class="nav-link" href="{{ route('admin.category') }}">
+            <i class="fas fa-fw fa-bolt"></i>
+            <span>Manage Category</span>
+        </a>
+    </li>
+        <!-- Nav Item - Manage Room -->
+        <li class="nav-item">
+            <a class="nav-link" href="{{ route('admin.rooms') }}">
+                <i class="fas fa-fw fa-bolt"></i>
+                <span>Manage Room</span>
+            </a>
+        </li>
     <!-- Nav Item - Manage Classes -->
     <li class="nav-item">
         <a class="nav-link" href="{{ route('admin.kelas') }}">

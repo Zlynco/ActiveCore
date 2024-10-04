@@ -22,6 +22,8 @@ class Classes extends Model
         'category_id',
         'quota',
         'current_bookings',
+        'room',
+        'room_id',
     ];
 
     public function coach()

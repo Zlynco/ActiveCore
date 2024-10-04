@@ -101,6 +101,20 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('member_attendances/{id}/edit', [AdminController::class, 'editMemberAttendance'])->name('attendances.editAttmember');
         Route::put('member_attendances/{id}', [AdminController::class, 'updateMemberAttendance'])->name('attendances.updateAttmember');
         Route::delete('member_attendances/{id}', [AdminController::class, 'destroyMemberAttendance'])->name('attendances.deleteAttmember');
+        // Rute manage category
+        Route::get('/category', [AdminController::class, 'manageCategory'])->name('category');
+        Route::get('categories/create', [AdminController::class, 'createCategory'])->name('categories.create');
+        Route::post('categories', [AdminController::class, 'storeCategory'])->name('categories.store');
+        Route::get('categories/{id}/edit', [AdminController::class, 'editCategory'])->name('categories.edit');
+        Route::put('categories/{id}', [AdminController::class, 'updateCategory'])->name('categories.update');
+        Route::delete('categories/{id}', [AdminController::class, 'destroyCategory'])->name('categories.destroy');
+        // Rute manage Room
+        Route::get('/rooms', [AdminController::class, 'manageRoom'])->name('rooms');
+        Route::get('room/create', [AdminController::class, 'createRoom'])->name('room.create');
+        Route::post('room', [AdminController::class, 'storeRoom'])->name('room.store');
+        Route::get('room/{id}/edit', [AdminController::class, 'editRoom'])->name('room.edit');
+        Route::put('room/{id}', [AdminController::class, 'updateRoom'])->name('room.update');
+        Route::delete('room/{id}', [AdminController::class, 'destroyRoom'])->name('room.destroy');
         // Route untuk memproses QR code
         Route::post('/attendance/scan', [AdminController::class, 'scanQrCode'])->name('attendance.scan');
 
@@ -110,6 +124,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('users/logs', [AdminController::class, 'showUserLogs'])->name('users.logs');
         Route::get('bookings/logs', [AdminController::class, 'showBookingLogs'])->name('bookings.logs');
         Route::get('attendances/logs', [AdminController::class, 'showAttendanceLogs'])->name('attendances.logs');
+        Route::get('categories/logs', [AdminController::class, 'showCategoryLogs'])->name('categories.logs');
+        Route::get('room/logs', [AdminController::class, 'showRoomLogs'])->name('room.logs');
         //other
         Route::get('/search', [SearchController::class, 'search'])->name('search');
         Route::get('/api/available-dates', [AdminController::class, 'getAvailableDates']);
@@ -128,26 +144,25 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::prefix('coach')->name('coach.')->group(function () {
         Route::get('/kelas', [CoachController::class, 'coachClasses'])->name('kelas');
         Route::get('/booking', [CoachController::class, 'showCoachBookings'])->name('booking');
-        
+
         // Route untuk absensi coach
         Route::get('/attendance', [CoachController::class, 'coachAbsen'])->name('attendance');
         Route::post('/attendance', [CoachController::class, 'storeAttendance'])->name('attendance.store');
-        
+
         // Member Attendance
         Route::get('/memberAttendance', [CoachController::class, 'showMemberAttendance'])->name('memberAttendance');
         Route::post('/memberAttendance', [CoachController::class, 'storeMemberAttendance'])->name('memberAttendance.store');
-        
+
         // Routes untuk manajemen attendance member
         Route::get('/attendances/create', [CoachController::class, 'createMemberAttendance'])->name('attendances.create');
         Route::post('/attendances/store', [CoachController::class, 'storeMemberAttendance'])->name('attendances.store');
         Route::get('/attendances/edit/{id}', [CoachController::class, 'editMemberAttendance'])->name('attendances.edit');
         Route::put('/attendances/update/{id}', [CoachController::class, 'updateMemberAttendance'])->name('attendances.update');
         Route::delete('/attendances/destroy/{id}', [CoachController::class, 'destroyMemberAttendance'])->name('attendances.destroy');
-        
+
         // QR Code scan route
         Route::post('/attendances/scan', [CoachController::class, 'scanQrCode'])->name('attendances.scan');
     });
-    
 });
 
 

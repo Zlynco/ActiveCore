@@ -146,6 +146,16 @@ return [
             'path' => storage_path('logs/attendance.log'),
             'level' => 'debug',
         ],
+        'category' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/category.log'),
+            'level' => 'debug',
+        ],
+        'rooms' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/rooms.log'),
+            'level' => 'debug',
+        ],
     ],
 
 ];
