@@ -15,17 +15,21 @@ return new class extends Migration
             $table->id();
             $table->string('image')->nullable(); // Kolom untuk gambar
             $table->string('name');
-            $table->enum('category_class', ['Zumba', 'Yoga', 'Muay Thai', 'Karate', 'Boxing']);
-            $table->text('description');
-            $table->string('day_of_week'); // Tambahkan hari jadwal kelas (misalnya: Senin)
-            $table->start_time('time');
-            $table->end_time('time');  
-            $table->decimal('price', 8, 2); // Kolom untuk harga
+            $table->text('description')->nullable(); // Deskripsi kelas, bisa null
+            $table->string('day_of_week'); // Hari jadwal kelas (misalnya: Senin)
+            $table->date('date'); // Tanggal kelas
+            $table->time('start_time'); // Jam mulai
+            $table->time('end_time'); // Jam selesai
+            $table->decimal('price', 8, 2)->nullable(); // Kolom untuk harga, bisa null
             $table->unsignedBigInteger('coach_id'); // ID coach dari tabel users
             $table->foreign('coach_id')->references('id')->on('users')->onDelete('cascade'); // Relasi ke tabel users
-            $table->unsignedBigInteger('category_id')->nullable()->after('coach_id');
-            $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null');
-            $table->unsignedInteger('quota')->default(10); // Set default quota to 10
+            $table->unsignedBigInteger('category_id')->nullable(); // Kolom untuk ID kategori
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null'); // Relasi ke tabel categories
+            $table->unsignedInteger('quota')->default(10); // Kuota peserta, default 10
+            $table->unsignedInteger('registered_count')->default(0); // Jumlah peserta terdaftar
+            $table->unsignedBigInteger('room_id')->nullable(); // Kolom untuk ID ruangan
+            $table->foreign('room_id')->references('id')->on('rooms')->onDelete('set null'); // Relasi ke tabel rooms
+            $table->enum('recurrence', ['once', 'monthly'])->default('once'); // Menyimpan jenis jadwal: 'once' atau 'monthly'
             $table->timestamps();
         });
     }

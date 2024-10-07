@@ -19,11 +19,12 @@
                                 </ul>
                             </div>
                         @endif
+                    
                         <div class="form-group">
                             <label for="image">Class Image</label>
                             <input type="file" id="image" name="image" class="form-control" accept="image/*">
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="name">Class Name</label>
                             <input type="text" id="name" name="name" class="form-control" required
@@ -32,7 +33,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="description">Description</label>
                             <textarea id="description" name="description" class="form-control" required>{{ old('description') }}</textarea>
@@ -40,7 +41,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="category_id">Category</label>
                             <select id="category_id" name="category_id" class="form-control" required
@@ -54,7 +55,16 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
+                        <div class="form-group">
+                            <label for="date">Class Date</label>
+                            <input type="date" id="date" name="date" class="form-control" required
+                                value="{{ old('date') }}">
+                            @error('date')
+                                <div class="text-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    
                         <div class="form-group">
                             <label for="day_of_week">Day of the Week</label>
                             <select name="day_of_week" class="form-control" required>
@@ -71,7 +81,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="start_time">Start Time</label>
                             <input type="time" name="start_time" class="form-control" required
@@ -80,7 +90,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="end_time">End Time</label>
                             <input type="time" name="end_time" class="form-control" required
@@ -89,7 +99,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="price">Price</label>
                             <input type="number" id="price" name="price" class="form-control" step="0.01"
@@ -98,7 +108,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="quota">Quota</label>
                             <input type="number" name="quota" id="quota" class="form-control" required
@@ -107,7 +117,7 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
-
+                    
                         <div class="form-group">
                             <label for="coach_id">Coach</label>
                             <select id="coach_id" name="coach_id" class="form-control" required>
@@ -122,9 +132,28 @@
                                     Available</option>
                             </select>
                         </div>
-
+                    
+                        <div class="form-group">
+                            <label for="room_id">Room</label>
+                            <select id="room_id" name="room_id" class="form-control">
+                                <option value="">Select Room (optional)</option>
+                                @foreach ($rooms as $room)
+                                    <option value="{{ $room->id }}">{{ $room->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    
+                        <div class="form-group">
+                            <label for="recurrence">Recurrence</label>
+                            <select id="recurrence" name="recurrence" class="form-control" required>
+                                <option value="once">Once</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                    
                         <button type="submit" class="btn btn-primary" id="submitBtn">Save</button>
                     </form>
+                    
                 </div>
             </div>
         </div>

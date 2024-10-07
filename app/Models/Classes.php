@@ -11,19 +11,10 @@ class Classes extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'description',
-        'day_of_week',
-        'start_time',
-        'end_time',
-        'image',
-        'price',
-        'coach_id',
-        'category_id',
-        'quota',
-        'current_bookings',
-        'room',
-        'room_id',
+        'image', 'name', 'description', 'day_of_week', 
+        'date', 'start_time', 'end_time', 'price', 
+        'coach_id', 'category_id', 'quota', 'registered_count', 
+        'room_id', 'recurrence',
     ];
 
     public function coach()
@@ -57,6 +48,9 @@ class Classes extends Model
     public function category()
 {
     return $this->belongsTo(Category::class, 'category_id');
+}
+public function room() {
+    return $this->belongsTo(Room::class);
 }
 
 }
