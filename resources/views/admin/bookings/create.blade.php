@@ -21,33 +21,73 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <form action="{{ route('admin.bookings.store') }}" method="POST" id="bookingForm">
-                        @csrf
+                    <!-- Form Pencarian dan Filter -->
+                    <form action="{{ route('admin.bookings.create') }}" method="GET">
+                        <div class="form-row mb-3">
+                            <div class="col">
+                                <select name="category" class="form-control">
+                                    <option value="">Select Category</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->id }}"
+                                            {{ request('category') == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="class">Pilih Kelas</label>
-                            <select name="class_id" id="class" class="form-control">
-                                @foreach ($classesWithDates as $classData)
-                                    <option value="{{ $classData['class']->id }}">{{ $classData['class']->name }} - {{ $classData['class']->day_of_week }}</option>
-                                @endforeach
-                            </select>
+                            <div class="col">
+                                <input type="date" name="booking_date" class="form-control"
+                                    value="{{ request('booking_date') }}">
+                            </div>
+
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary">Filter</button>
+                            </div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="booking_date">Pilih Tanggal Sesuai Jadwal Kelas</label>
-                            <select name="booking_date" id="booking_date" class="form-control">
-                                @foreach ($classesWithDates as $classData)
-                                    <optgroup label="{{ $classData['class']->name }}">
-                                        @foreach ($classData['availableDates'] as $dateData)
-                                            <option value="{{ $dateData['date'] }}">{{ $dateData['date'] }} - Sisa Kuota: {{ $dateData['available_quota'] }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">Book Class</button>
                     </form>
+                    <hr>
+
+                    <!-- Tampilkan Kelas dalam Bentuk Card -->
+                    <!-- Tampilkan Kelas dalam Bentuk Card -->
+                    <div class="row" style="max-height: 400px; overflow-y: scroll;">
+                        @if (empty($classesWithDates))
+                            <div class="col-12">
+                                <p>No classes available.</p>
+                            </div>
+                        @else
+                            @foreach ($classesWithDates as $classData)
+                                <div class="col-md-4">
+                                    <div class="card mb-4">
+                                        @if ($classData['class']->image)
+                                            <img src="{{ Storage::url($classData['class']->image) }}"
+                                                class="card-img-top" alt="{{ $classData['class']->name }}">
+                                        @endif
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ $classData['class']->name }}</h5>
+                                            <p class="card-text">Day: {{ $classData['class']->day_of_week }}</p>
+                                            <p class="card-text">Available Date: {{ $classData['date'] }} - Sisa Kuota:
+                                                {{ $classData['available_quota'] }}</p>
+                                            <p class="card-text">Price: Rp
+                                                {{ number_format($classData['class']->price, 0, ',', '.') }}</p>
+                                            <!-- Menampilkan harga kelas -->
+
+                                            <!-- Tautan untuk Booking -->
+                                            <form action="{{ route('admin.bookings.store') }}" method="POST">
+                                                @csrf
+                                                <input type="hidden" name="class_id"
+                                                    value="{{ $classData['class']->id }}">
+                                                <input type="hidden" name="booking_date"
+                                                    value="{{ $classData['date'] }}">
+                                                <button type="submit" class="btn btn-primary">Book Class</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -61,7 +101,7 @@
 
             var options = document.querySelectorAll("#booking_date option");
             var quotaFilled = 0;
-            
+
             options.forEach(function(option) {
                 if (option.value === selectedDate) {
                     quotaFilled = parseInt(option.textContent.match(/Sisa Kuota: (\d+)/)[1]);

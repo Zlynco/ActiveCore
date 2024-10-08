@@ -30,7 +30,9 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])
 // Rute untuk menangani login secara POST
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-Route::view('/', 'welcome');
+Route::get('/', function () {
+    return redirect()->route('login');
+});
 Route::view('/kelas', 'kelas')->name('kelas');
 Route::view('/coach', 'coach')->name('coach');
 Route::view('/member', 'member')->name('member');
