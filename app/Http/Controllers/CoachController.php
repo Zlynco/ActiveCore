@@ -6,6 +6,7 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Models\Booking;
+use App\Models\Category;
 use App\Models\Classes;
 use App\Models\ClassLog;
 use App\Models\Coach;
@@ -30,75 +31,62 @@ class CoachController extends Controller
      * @return \Illuminate\View\View
      */
     public function index()
-    {
-        // Ambil data coach yang sedang login
-        $coach = Auth::user();
+{
+    // Ambil data coach yang sedang login
+    $coach = Auth::user();
 
-        // Peta konversi hari dari bahasa Inggris ke bahasa Indonesia
-        $daysOfWeek = [
-            'Sunday' => 'Minggu',
-            'Monday' => 'Senin',
-            'Tuesday' => 'Selasa',
-            'Wednesday' => 'Rabu',
-            'Thursday' => 'Kamis',
-            'Friday' => 'Jumat',
-            'Saturday' => 'Sabtu',
-        ];
+    // Ambil kelas yang harus diajar untuk hari ini
+    $today = now()->toDateString(); // Ambil tanggal hari ini
+    $classes = Classes::where('coach_id', $coach->id)
+        ->whereDate('date', $today) // Pastikan ada kolom 'date' di tabel kelas
+        ->get();
 
-        // Ambil hari ini dalam bahasa Inggris dan ubah ke bahasa Indonesia
-        $dayOfWeek = $daysOfWeek[now()->format('l')];
+    // Ambil booking yang berlaku untuk hari ini
+    $bookings = CoachBooking::where('coach_id', $coach->id)
+        ->whereDate('booking_date', $today)
+        ->get();
 
-        // Ambil kelas yang harus diajar untuk hari ini
-        $classes = Classes::where('coach_id', $coach->id)
-            ->where('day_of_week', $dayOfWeek)
-            ->get();
+    // Tentukan ketersediaan dan detail kelas atau booking yang sedang berlangsung
+    $isAvailable = true;
+    $currentClass = null;
+    $currentBooking = null;
+    $currentTime = now()->format('H:i');
 
-        // Ambil booking yang berlaku untuk hari ini
-        $bookings = CoachBooking::where('coach_id', $coach->id)
-            ->where('coach_id', $coach->id)
-            ->whereDate('booking_date', now()->toDateString())
-            ->get();
+    foreach ($classes as $class) {
+        $startTime = \Carbon\Carbon::parse($class->start_time)->format('H:i');
+        $endTime = \Carbon\Carbon::parse($class->end_time)->format('H:i');
 
-        // Tentukan ketersediaan dan detail kelas atau booking yang sedang berlangsung
-        $isAvailable = true;
-        $currentClass = null;
-        $currentBooking = null;
-        $currentTime = now()->format('H:i');
+        if ($currentTime >= $startTime && $currentTime <= $endTime) {
+            $isAvailable = false; // Jika coach sedang mengajar
+            $currentClass = $class; // Simpan kelas yang sedang berlangsung
+            break;
+        }
+    }
 
-        foreach ($classes as $class) {
-            $startTime = \Carbon\Carbon::parse($class->start_time)->format('H:i');
-            $endTime = \Carbon\Carbon::parse($class->end_time)->format('H:i');
+    if ($isAvailable) {
+        foreach ($bookings as $booking) {
+            $bookingStartTime = \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i');
+            $bookingEndTime = \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i');
 
-            if ($currentTime >= $startTime && $currentTime <= $endTime) {
-                $isAvailable = false; // Jika coach sedang mengajar
-                $currentClass = $class; // Simpan kelas yang sedang berlangsung
+            if ($currentTime >= $bookingStartTime && $currentTime <= $bookingEndTime) {
+                $isAvailable = false; // Jika ada booking aktif
+                $currentBooking = $booking; // Simpan booking yang sedang berlangsung
                 break;
             }
         }
-
-        if ($isAvailable) {
-            foreach ($bookings as $booking) {
-                $bookingStartTime = \Carbon\Carbon::parse($booking->start_booking_time)->format('H:i');
-                $bookingEndTime = \Carbon\Carbon::parse($booking->end_booking_time)->format('H:i');
-
-                if ($currentTime >= $bookingStartTime && $currentTime <= $bookingEndTime) {
-                    $isAvailable = false; // Jika ada booking aktif
-                    $currentBooking = $booking; // Simpan booking yang sedang berlangsung
-                    break;
-                }
-            }
-        }
-
-        // Kirim data ke view dashboard coach
-        return view('coach.dashboard', [
-            'coach' => $coach,
-            'classes' => $classes,
-            'bookings' => $bookings,
-            'isAvailable' => $isAvailable, // Status ketersediaan
-            'currentClass' => $currentClass, // Detail kelas yang sedang berlangsung
-            'currentBooking' => $currentBooking, // Detail booking yang sedang berlangsung
-        ]);
     }
+
+    // Kirim data ke view dashboard coach
+    return view('coach.dashboard', [
+        'coach' => $coach,
+        'classes' => $classes,
+        'bookings' => $bookings,
+        'isAvailable' => $isAvailable, // Status ketersediaan
+        'currentClass' => $currentClass, // Detail kelas yang sedang berlangsung
+        'currentBooking' => $currentBooking, // Detail booking yang sedang berlangsung
+    ]);
+}
+
 
 
     public function checkAvailability()
@@ -127,11 +115,24 @@ class CoachController extends Controller
     {
         // Ambil user yang sedang login
         $coach = auth()->user();
-
+    
         // Ambil kelas yang diajar oleh coach ini
         $classes = $coach->classes;
-        return view('coach.kelas', compact('classes'));
+            // Ambil semua kategori dari database
+    $categories = Category::all();
+    
+        // Filter berdasarkan tanggal jika ada
+        if ($request->has('date') && $request->date) {
+            $classes = $classes->where('date', $request->date);
+        }
+    
+    // Filter berdasarkan kategori jika ada
+    if ($request->has('category') && $request->category) {
+        $classes = $classes->where('category_id', $request->category); // Menggunakan category_id
     }
+        return view('coach.kelas', compact('classes', 'categories'));
+    }
+    
 
     public function showCoachBookings(Request $request)
     {

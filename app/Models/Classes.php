@@ -52,6 +52,12 @@ class Classes extends Model
 public function room() {
     return $this->belongsTo(Room::class);
 }
+ // Definisikan accessor untuk available_quota
+ public function getAvailableQuotaAttribute()
+ {
+     $currentBookingsCount = $this->bookings->where('paid', true)->count();
+     return max(0, $this->quota - $currentBookingsCount);
+ }
 
 }
 

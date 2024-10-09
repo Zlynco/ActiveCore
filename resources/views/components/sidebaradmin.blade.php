@@ -38,14 +38,14 @@
     <!-- Nav Item - Manage Category -->
     <li class="nav-item">
         <a class="nav-link" href="{{ route('admin.category') }}">
-            <i class="fas fa-fw fa-bolt"></i>
+            <i class="fas fa-fw fa-list"></i>
             <span>Manage Category</span>
         </a>
     </li>
         <!-- Nav Item - Manage Room -->
         <li class="nav-item">
             <a class="nav-link" href="{{ route('admin.rooms') }}">
-                <i class="fas fa-fw fa-bolt"></i>
+                <i class="fas fa-fw fa-door-open"></i>
                 <span>Manage Room</span>
             </a>
         </li>

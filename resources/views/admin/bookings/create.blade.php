@@ -21,9 +21,12 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <!-- Form Pencarian dan Filter -->
+                    <!-- Form Filter -->
                     <form action="{{ route('admin.bookings.create') }}" method="GET">
                         <div class="form-row mb-3">
+                            <div class="col">
+                                <input type="date" name="booking_date" id="booking_date" class="form-control" >
+                            </div>
                             <div class="col">
                                 <select name="category" class="form-control">
                                     <option value="">Select Category</option>
@@ -35,57 +38,68 @@
                                     @endforeach
                                 </select>
                             </div>
-
-                            <div class="col">
-                                <input type="date" name="booking_date" class="form-control"
-                                    value="{{ request('booking_date') }}">
-                            </div>
-
                             <div class="col">
                                 <button type="submit" class="btn btn-primary">Filter</button>
+                                <a href="{{ route('admin.bookings.create') }}" class="btn btn-secondary">Clear Filter</a>
                             </div>
                         </div>
                     </form>
                     <hr>
 
-                    <!-- Tampilkan Kelas dalam Bentuk Card -->
-                    <!-- Tampilkan Kelas dalam Bentuk Card -->
+                    <!-- Tampilkan Semua Kelas dalam Bentuk Card -->
                     <div class="row" style="max-height: 400px; overflow-y: scroll;">
-                        @if (empty($classesWithDates))
+                        @if ($classes->isEmpty())
                             <div class="col-12">
-                                <p>No classes available.</p>
+                                <div class="alert alert-warning">
+                                    <p>No classes available at the moment. Please check again later.</p>
+                                </div>
                             </div>
                         @else
-                            @foreach ($classesWithDates as $classData)
+                            @foreach ($classes as $class)
                                 <div class="col-md-4">
-                                    <div class="card mb-4">
-                                        @if ($classData['class']->image)
-                                            <img src="{{ Storage::url($classData['class']->image) }}"
-                                                class="card-img-top" alt="{{ $classData['class']->name }}">
+                                    <div class="card mb-4 shadow-sm">
+                                        @if ($class->image)
+                                            <img src="{{ Storage::url($class->image) }}" class="card-img-top"
+                                                alt="{{ $class->name }}">
+                                        @else
+                                            <!-- Placeholder jika tidak ada gambar -->
                                         @endif
                                         <div class="card-body">
-                                            <h5 class="card-title">{{ $classData['class']->name }}</h5>
-                                            <p class="card-text">Day: {{ $classData['class']->day_of_week }}</p>
-                                            <p class="card-text">Available Date: {{ $classData['date'] }} - Sisa Kuota:
-                                                {{ $classData['available_quota'] }}</p>
+                                            <h5 class="card-title">{{ $class->name }}</h5>
+                                            <p class="card-text">{{ Str::limit($class->description, 100, '...') }}</p>
+                                            <p class="card-text">Date:
+                                                {{ \Carbon\Carbon::parse($class->date)->format('d M Y') }}</p>
+                                            <p class="card-text">Day: {{ $class->day_of_week }}</p>
+                                            <p class="card-text">Time: {{ $class->start_time }} -
+                                                {{ $class->end_time }}</p>
                                             <p class="card-text">Price: Rp
-                                                {{ number_format($classData['class']->price, 0, ',', '.') }}</p>
-                                            <!-- Menampilkan harga kelas -->
+                                                {{ number_format($class->price, 0, ',', '.') }}</p>
 
-                                            <!-- Tautan untuk Booking -->
-                                            <form action="{{ route('admin.bookings.store') }}" method="POST">
-                                                @csrf
-                                                <input type="hidden" name="class_id"
-                                                    value="{{ $classData['class']->id }}">
-                                                <input type="hidden" name="booking_date"
-                                                    value="{{ $classData['date'] }}">
-                                                <button type="submit" class="btn btn-primary">Book Class</button>
-                                            </form>
+                                            @php
+                                                // Menghitung kuota yang tersedia
+                                                $bookedCount = $class->bookings->where('paid', true)->count();
+                                                $availableQuota = max(0, $class->quota - $bookedCount);
+                                            @endphp
+
+                                            @if ($availableQuota > 0)
+                                                <p class="card-text">Available Quota: <span
+                                                        class="badge badge-success">{{ $availableQuota }}</span>
+                                                </p>
+                                                <form action="{{ route('admin.bookings.store') }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="class_id" value="{{ $class->id }}">
+                                                    <button type="submit" class="btn btn-primary btn-block">Book
+                                                        Class</button>
+                                                </form>
+                                            @else
+                                                <p class="card-text">Available Quota: <span
+                                                        class="badge badge-danger">Full</span></p>
+                                                <button class="btn btn-secondary btn-block" disabled>Class Full</button>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
                             @endforeach
-
                         @endif
                     </div>
                 </div>
@@ -99,6 +113,7 @@
             var selectedClassId = document.querySelector("#class").value;
             var selectedDate = document.querySelector("#booking_date").value;
 
+            // Ini mungkin tidak lagi diperlukan, karena kita tidak menggunakan element option untuk tanggal
             var options = document.querySelectorAll("#booking_date option");
             var quotaFilled = 0;
 

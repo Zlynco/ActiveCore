@@ -10,7 +10,7 @@
     <div class="py-0">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100" style="max-height: 500px; overflow-y: scroll;">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
 
                     <!-- Form Filter & Search -->
                     <form method="GET" action="{{ route('admin.kelas') }}">
@@ -48,6 +48,9 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <!-- Filter Berdasarkan Tanggal -->
+        <input type="date" name="date" class="form-control mr-2" 
+        placeholder="Select Date" value="{{ request('date') }}">
                             <button type="submit" class="btn btn-secondary">Filter</button>
                         </div>
                     </form>
@@ -56,10 +59,10 @@
                         <p>No classes found.</p>
                     @else
                         <!-- Tambahkan kelas 'table-responsive' agar tabel bisa di-scroll secara horizontal -->
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 360px; overflow-y: scroll;">
                             <table class="table table-striped table-hover">
                                 <thead>
-                                    <tr>admin
+                                    <tr>
                                         <th>Class Name</th>
                                         <th>Class Category</th>
                                         <th>Coach</th>
