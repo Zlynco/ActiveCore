@@ -34,12 +34,12 @@
                     <!-- Tab content -->
                     <div class="tab-content" id="bookingTabContent" style="max-height: 400px; overflow-y: scroll;">
                         <!-- Class bookings tab -->
-                        <div class="tab-pane fade show active" id="class-bookings" role="tabpanel"
+                        <div class="tab-pane fade show active table-responsive" id="class-bookings" role="tabpanel"
                             aria-labelledby="class-tab">
                             @if ($bookings->isEmpty())
                                 <p>No bookings found.</p>
                             @else
-                                <table class="table">
+                                <table class="table table-striped table-hover">
                                     <thead>
                                         <tr>
                                             <th>Nama Kelas</th>
@@ -64,7 +64,7 @@
                                                 <td>{{ $booking['day_of_week'] }} at {{ $booking['start_time'] }} -
                                                     {{ $booking['end_time'] }}</td>
                                                 <td>{{ $booking['booking_date'] }}</td>
-                                                <td>${{ $booking['amount'] }}</td>
+                                                <td>Rp{{ $booking['amount'] }}</td>
                                                 <td>{{ $booking['paid'] }}</td>
                                                 <td>{{ $booking['quota_filled'] }} / {{ $booking['quota'] }}</td>
                                                 <td>{{ $booking['booking_code'] }}</td>
@@ -113,11 +113,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="coach-bookings" role="tabpanel" aria-labelledby="coach-tab">
+                        <div class="tab-pane fade table-responsive" id="coach-bookings" role="tabpanel" aria-labelledby="coach-tab">
                             @if ($coachBookings->isEmpty())
                                 <p>No coach bookings found.</p>
                             @else
-                                <table class="table">
+                            <table class="table table-striped table-hover">
                                     <thead>
                                         <tr>
                                             <th>Coach</th>

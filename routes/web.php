@@ -132,6 +132,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('/search', [SearchController::class, 'search'])->name('search');
         Route::get('/api/available-dates', [AdminController::class, 'getAvailableDates']);
         Route::get('/api/coach/{coach}/availability', [AdminController::class, 'getAvailabilityByCoach']);
+        Route::get('/api/popular-classes', [AdminController::class, 'getPopularClasses']);
+
     });
 });
 Route::middleware(['auth', 'role:coach'])->group(function () {
