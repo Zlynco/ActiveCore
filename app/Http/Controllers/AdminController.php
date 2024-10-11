@@ -111,28 +111,28 @@ class AdminController extends Controller
         return view('admin.edit-coach', compact('coach', 'categories'));
     }
 
-    // Controller Method untuk Update Coach
     public function updateCoach(Request $request, $id)
     {
         // Validasi data input
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
+            'phone_number' => 'nullable|numeric', // Validasi untuk phone_number
             'categories' => 'required|array',
             'categories.*' => 'exists:categories,id',
         ]);
-
+    
         Log::channel('userlog')->info('Proses update coach dimulai.', ['coach_id' => $id]);
         $coach = User::findOrFail($id);
-        $coach->update($request->only(['name', 'email']));
-
+        $coach->update($request->only(['name', 'email', 'phone_number'])); // Tambahkan phone_number
+    
         // Sinkronisasi kategori
         $coach->categories()->sync($request->categories);
-
+    
         Log::channel('userlog')->info('Coach berhasil diupdate.', ['coach_id' => $id]);
         return redirect()->route('admin.user')->with('success', 'Coach updated successfully');
     }
-
+    
 
     // Controller Method untuk Delete Coach
     public function deleteCoach($id)
@@ -220,9 +220,8 @@ class AdminController extends Controller
         }
 
         // Tambahkan filter bulan jika ada
-        if ($selectedMonth) {
-            $classesQuery->whereMonth('date', $selectedMonth);
-        }
+        //if ($selectedMonth) {$classesQuery->whereMonth('date', $selectedMonth);}
+
         // Filter berdasarkan tanggal tunggal
         if ($request->filled('date')) {
             $classesQuery->whereDate('date', $request->date); // Menggunakan whereDate untuk filter tanggal
@@ -268,6 +267,11 @@ class AdminController extends Controller
             'category_id' => 'required|exists:categories,id',
             'room_id' => 'nullable|exists:rooms,id', // Validasi untuk ruangan
         ]);
+        // Cek apakah kuota melebihi kapasitas ruangan
+        $room = Room::find($request->room_id);
+        if ($room && $request->quota > $room->capacity) {
+            return redirect()->back()->withErrors(['error' => 'Kuota kelas melebihi kapasitas ruangan yang dipilih. Kapasitas maksimum: ' . $room->capacity])->withInput();
+        }
 
         // Ambil data kelas
         $class = Classes::findOrFail($id);
@@ -376,87 +380,93 @@ class AdminController extends Controller
 
 
     public function storeClass(Request $request)
-{
-    Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
+    {
+        Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
 
-    // Validasi input
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'required|string',
-        'day_of_week' => 'required|string',
-        'date' => 'required|date', // Validasi tanggal
-        'start_time' => 'required|date_format:H:i',
-        'end_time' => 'required|date_format:H:i',
-        'price' => 'required|numeric|min:0',
-        'coach_id' => 'required|exists:users,id',
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        'quota' => 'required|integer|min:1',
-        'category_id' => 'required|exists:categories,id',
-        'room_id' => 'nullable|exists:rooms,id',
-        'recurrence' => 'required|in:once,monthly',
-    ]);
-
-    // Cek apakah ada kelas lain pada hari dan waktu yang sama di ruang yang sama
-    $existingClassInSameRoom = Classes::where('day_of_week', $request->day_of_week)
-        ->where('date', $request->date)
-        ->where('room_id', $request->room_id) // Pengecekan ruangan
-        ->where(function ($query) use ($request) {
-            $query->where(function ($q) use ($request) {
-                $q->where('start_time', '<', $request->end_time)
-                    ->where('end_time', '>', $request->start_time);
-            });
-        })
-        ->exists();
-
-    // Cek apakah ada kelas lain pada hari dan waktu yang sama dengan coach yang sama
-    $existingClassForSameCoach = Classes::where('date', $request->date)
-        ->where('start_time', '<', $request->end_time)
-        ->where('end_time', '>', $request->start_time)
-        ->where('coach_id', $request->coach_id) // Cek untuk coach yang sama
-        ->exists();
-    
-    $roomName = Room::find($request->room_id)->name ?? 'Ruang tidak ditemukan';
-    if ($existingClassInSameRoom) {
-        return redirect()->back()->withErrors(['Sudah ada Kelas pada hari dan waktu yang sama di room: ' . $roomName])->withInput();
-    }
-
-    if ($existingClassForSameCoach) {
-        return redirect()->back()->withErrors(['Coach sudah memiliki kelas pada hari dan waktu yang sama.'])->withInput();
-    }
-
-    // Unggah gambar jika ada
-    $imagePath = null;
-    if ($request->hasFile('image')) {
-        $imagePath = $request->file('image')->store('images/classes', 'public'); // Menyimpan gambar di storage/app/public/images/classes
-    }
-
-    // Jika pilihan untuk membuat jadwal sebulan dipilih
-    if ($request->recurrence === 'monthly') {
-        $this->createMonthlySchedule($request, $imagePath);
-    } else {
-        // Simpan kelas baru untuk satu kali jadwal
-        Classes::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'day_of_week' => $request->day_of_week,
-            'date' => $request->date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'price' => $request->price,
-            'coach_id' => $request->coach_id,
-            'image' => $imagePath,
-            'quota' => $request->quota,
-            'registered_count' => 0, // Awal jumlah peserta terdaftar
-            'category_id' => $request->category_id,
-            'room_id' => $request->room_id,
-            'recurrence' => 'once', // Untuk kelas yang tidak berulang
+        // Validasi input
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'day_of_week' => 'required|string',
+            'date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'price' => 'required|numeric|min:0',
+            'coach_id' => 'required|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'quota' => 'required|integer|min:1',
+            'category_id' => 'required|exists:categories,id',
+            'room_id' => 'nullable|exists:rooms,id',
+            'recurrence' => 'required|in:once,monthly',
         ]);
+
+        // Cek kapasitas ruangan
+        $room = Room::find($request->room_id);
+        if ($room && $request->quota > $room->capacity) {
+            return redirect()->back()->withErrors(['Quota tidak boleh lebih dari kapasitas ruangan: ' . $room->capacity])->withInput();
+        }
+
+        // Cek apakah ada kelas lain pada hari dan waktu yang sama di ruangan yang sama
+        $existingClassInSameRoom = Classes::where('day_of_week', $request->day_of_week)
+            ->where('date', $request->date)
+            ->where('room_id', $request->room_id)
+            ->where(function ($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('start_time', '<', $request->end_time)
+                        ->where('end_time', '>', $request->start_time);
+                });
+            })
+            ->exists();
+
+        // Cek apakah ada kelas lain dengan coach yang sama pada waktu yang sama
+        $existingClassForSameCoach = Classes::where('date', $request->date)
+            ->where('start_time', '<', $request->end_time)
+            ->where('end_time', '>', $request->start_time)
+            ->where('coach_id', $request->coach_id)
+            ->exists();
+
+        $roomName = $room->name ?? 'Ruang tidak ditemukan';
+        if ($existingClassInSameRoom) {
+            return redirect()->back()->withErrors(['Sudah ada kelas pada hari dan waktu yang sama di room: ' . $roomName])->withInput();
+        }
+
+        if ($existingClassForSameCoach) {
+            return redirect()->back()->withErrors(['Coach sudah memiliki kelas pada hari dan waktu yang sama.'])->withInput();
+        }
+
+        // Unggah gambar jika ada
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('images/classes', 'public');
+        }
+
+        // Jika pilihan untuk membuat jadwal bulanan dipilih
+        if ($request->recurrence === 'monthly') {
+            $this->createMonthlySchedule($request, $imagePath);
+        } else {
+            // Simpan kelas baru untuk satu kali jadwal
+            Classes::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'day_of_week' => $request->day_of_week,
+                'date' => $request->date,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'price' => $request->price,
+                'coach_id' => $request->coach_id,
+                'image' => $imagePath,
+                'quota' => $request->quota,
+                'registered_count' => 0,
+                'category_id' => $request->category_id,
+                'room_id' => $request->room_id,
+                'recurrence' => 'once',
+            ]);
+        }
+
+        Log::channel('classes')->info('Kelas baru berhasil dibuat.', ['name' => $request->name]);
+
+        return redirect()->route('admin.kelas')->with('success', 'Kelas berhasil dibuat.');
     }
-
-    Log::channel('classes')->info('Kelas baru berhasil dibuat.', ['name' => $request->name]);
-
-    return redirect()->route('admin.kelas')->with('success', 'Kelas berhasil dibuat.');
-}
 
 
     protected function createMonthlySchedule(Request $request, $imagePath)
@@ -699,15 +709,14 @@ class AdminController extends Controller
                     })
                     ->orWhere('booking_code', 'like', "%{$search}%");
             });
-            
         }
 
         $bookings = $bookingsQuery->orderBy('booking_date', 'desc')
-        ->orderBy('created_at', 'desc')
-        ->get();
+            ->orderBy('created_at', 'desc')
+            ->get();
         $coachBookings = $coachBookingsQuery->orderBy('booking_date', 'desc')
-        ->orderBy('created_at', 'desc')
-        ->get();
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         // Tambahkan kuota terisi per tanggal ke setiap booking
         $bookings = $bookings->map(function ($booking) {
@@ -742,38 +751,45 @@ class AdminController extends Controller
         return view('admin.booking', compact('bookings', 'coachBookings', 'categories'));
     }
     public function createBooking(Request $request)
-    {
-        Log::channel('booking')->info('Menyiapkan halaman untuk membuat booking baru.');
+{
+    Log::channel('booking')->info('Menyiapkan halaman untuk membuat booking baru.');
 
-        // Ambil semua kategori
-        $categories = Category::all();
+    // Ambil semua kategori
+    $categories = Category::all();
 
-        // Ambil semua kelas, termasuk gambar dan booking yang terkait
-        $classesQuery = Classes::query();
+    // Ambil semua kelas, termasuk gambar dan booking yang terkait
+    $classesQuery = Classes::query();
 
+    // Filter kelas yang waktunya belum berlalu
+    $now = Carbon::now(); // Mendapatkan waktu sekarang
+    $classesQuery->where('date', '>=', $now->toDateString()) // Memastikan tanggal kelas tidak di masa lalu
+                  ->where(function($query) use ($now) {
+                      $query->where('start_time', '>', $now->toTimeString())
+                            ->orWhere('date', '>', $now->toDateString());
+                  });
 
-        // Filter berdasarkan tanggal jika ada
-        if ($request->has('booking_date') && !empty($request->booking_date)) {
-            $classesQuery->whereDate('date', $request->booking_date);
-        }
-
-        // Filter kelas berdasarkan kategori jika ada
-        if ($request->has('category') && !empty($request->category)) {
-            $classesQuery->where('category_id', $request->category);
-        }
-
-        // Ambil kelas yang telah difilter
-        $classes = $classesQuery->get();
-
-        // Logging data kelas
-        Log::channel('booking')->info('Data kelas berhasil dipersiapkan.', [
-            'classes_count' => $classes->count(),
-            'date_generated' => Carbon::now()->toDateTimeString()
-        ]);
-
-        // Kirim data ke view
-        return view('admin.bookings.create', compact('classes', 'categories'));
+    // Filter berdasarkan tanggal jika ada
+    if ($request->has('booking_date') && !empty($request->booking_date)) {
+        $classesQuery->whereDate('date', $request->booking_date);
     }
+
+    // Filter kelas berdasarkan kategori jika ada
+    if ($request->has('category') && !empty($request->category)) {
+        $classesQuery->where('category_id', $request->category);
+    }
+
+    // Ambil kelas yang telah difilter
+    $classes = $classesQuery->get();
+
+    // Logging data kelas
+    Log::channel('booking')->info('Data kelas berhasil dipersiapkan.', [
+        'classes_count' => $classes->count(),
+        'date_generated' => Carbon::now()->toDateTimeString()
+    ]);
+
+    // Kirim data ke view
+    return view('admin.bookings.create', compact('classes', 'categories'));
+}
 
 
     public function storeBooking(Request $request)
@@ -1627,10 +1643,10 @@ class AdminController extends Controller
     {
         // Ambil data coach yang sedang login
         $coach = Auth::user();
-    
+
         // Ambil kelas yang harus diajar oleh coach
         $classes = Classes::where('coach_id', $coach->id)->with('category')->get();
-    
+
         // Format data untuk API
         $events = $classes->map(function ($class) {
             return [
@@ -1638,15 +1654,15 @@ class AdminController extends Controller
                 'date' => Carbon::parse($class->date)->format('Y-m-d'), // Menggunakan Carbon untuk mengonversi dan format
                 'day_of_week' => Carbon::parse($class->date)->format('l'), // Menggunakan Carbon untuk mengonversi dan mendapatkan hari
                 'category_id' => $class->category_id ? $class->category->name : 'No Category', // Mengambil nama kategori
-'start_time' => Carbon::parse($class->date . ' ' . $class->start_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu mulai
-            'end_time' => Carbon::parse($class->date . ' ' . $class->end_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu selesai
+                'start_time' => Carbon::parse($class->date . ' ' . $class->start_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu mulai
+                'end_time' => Carbon::parse($class->date . ' ' . $class->end_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu selesai
                 'registered_count' => $class->registered_count,
             ];
         });
-    
+
         return response()->json($events);
     }
-    
+
     public function getCoachBookings(Request $request)
     {
         // Ambil ID coach dari yang sedang login
@@ -1676,7 +1692,7 @@ class AdminController extends Controller
     public function getPopularClasses()
     {
         $currentMonth = Carbon::now()->month;
-    
+
         $popularClasses = DB::table('bookings')
             ->join('classes', 'bookings.class_id', '=', 'classes.id')
             ->join('categories', 'classes.category_id', '=', 'categories.id')
@@ -1684,8 +1700,7 @@ class AdminController extends Controller
             ->select('categories.name', DB::raw('COUNT(bookings.id) as total_bookings'))
             ->groupBy('categories.name')
             ->get();
-    
+
         return response()->json($popularClasses);
     }
-    
 }

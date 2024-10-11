@@ -6,7 +6,8 @@
             <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Categories</th> <!-- Menambahkan kolom kategori -->
+                <th>Phone Number</th> <!-- Tambahkan kolom phone_number -->
+                <th>Categories</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -16,13 +17,14 @@
                 <tr>
                     <td>{{ $coach->name }}</td>
                     <td>{{ $coach->email }}</td>
+                    <td>{{ $coach->phone_number }}</td> <!-- Menampilkan phone_number -->
                     <td>
                         @if ($coach->categories->isEmpty())
                             N/A
                         @else
                             <ul>
                                 @foreach ($coach->categories as $category)
-                                    <li>{{ $category->name }}</li> <!-- Menampilkan semua kategori -->
+                                    <li>{{ $category->name }}</li>
                                 @endforeach
                             </ul>
                         @endif

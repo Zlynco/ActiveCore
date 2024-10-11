@@ -119,7 +119,7 @@
                                 @foreach ($rooms as $room)
                                     <option value="{{ $room->id }}"
                                         {{ $class->room_id == $room->id ? 'selected' : '' }}>
-                                        {{ $room->name }}
+                                        {{ $room->name }} - Capacity {{ $room->capacity }}
                                     </option>
                                 @endforeach
                             </select>

@@ -88,13 +88,13 @@
                                                 <form action="{{ route('admin.bookings.store') }}" method="POST">
                                                     @csrf
                                                     <input type="hidden" name="class_id" value="{{ $class->id }}">
-                                                    <button type="submit" class="btn btn-primary btn-block">Book
+                                                    <button type="submit" class="btn btn-primary btn-block mt-2">Book
                                                         Class</button>
                                                 </form>
                                             @else
                                                 <p class="card-text">Available Quota: <span
                                                         class="badge badge-danger">Full</span></p>
-                                                <button class="btn btn-secondary btn-block" disabled>Class Full</button>
+                                                <button class="btn btn-secondary btn-block mt-2" disabled>Class Full</button>
                                             @endif
                                         </div>
                                     </div>

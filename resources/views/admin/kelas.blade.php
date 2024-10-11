@@ -28,17 +28,6 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <!-- Filter Berdasarkan Bulan -->
-                            <select name="month" class="form-control mr-2">
-                                <option value="">All Months</option>
-                                @foreach (range(1, 12) as $month)
-                                    <option value="{{ $month }}"
-                                        {{ request('month') == $month ? 'selected' : '' }}>
-                                        {{ \Carbon\Carbon::create()->month($month)->format('F') }}
-                                        <!-- Nama bulan dalam format teks -->
-                                    </option>
-                                @endforeach
-                            </select>
                             <!-- Filter Berdasarkan Hari -->
                             <select name="day" class="form-control mr-2">
                                 <option value="">All Days</option>

@@ -10,14 +10,19 @@
 
             <div class="mb-3">
                 <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" name="name" value="{{ $coach->name }}"
-                    required>
+                <input type="text" class="form-control" id="name" name="name" value="{{ $coach->name }}" required>
             </div>
+
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ $coach->email }}"
-                    required>
+                <input type="email" class="form-control" id="email" name="email" value="{{ $coach->email }}" required>
             </div>
+
+            <div class="mb-3">
+                <label for="phone_number" class="form-label">Phone Number</label>
+                <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ $coach->phone_number }}">
+            </div>
+
             <div class="mb-3">
                 <label for="categories" class="form-label">Categories</label>
                 <div id="categories">
@@ -25,7 +30,7 @@
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="category{{ $category->id }}"
                                 name="categories[]" value="{{ $category->id }}"
-                                {{ in_array($category->d, $coach->categories->pluck('id')->toArray()) ? 'checked' : '' }}>
+                                {{ in_array($category->id, $coach->categories->pluck('id')->toArray()) ? 'checked' : '' }}>
                             <label class="form-check-label" for="category{{ $category->id }}">
                                 {{ $category->name }}
                             </label>
@@ -33,7 +38,6 @@
                     @endforeach
                 </div>
             </div>
-
 
             <button type="submit" class="btn btn-primary">Update</button>
         </form>

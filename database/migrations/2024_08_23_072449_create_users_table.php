@@ -15,13 +15,13 @@ return new class extends Migration
         $table->id();
         $table->string('name');
         $table->string('email')->unique();
+        $table->string('phone_number')->after('email')->nullable(); // Menambahkan kolom setelah email
         $table->timestamp('email_verified_at')->nullable();
         $table->string('password');
         $table->enum('role', ['member', 'coach', 'admin']); // Menambahkan kolom role
         $table->rememberToken();
         $table->timestamps();
         $table->string('status')->default('pending');
-        $table->tinyInteger('availability_status')->change();
     });
 }
 

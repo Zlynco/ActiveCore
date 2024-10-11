@@ -16,7 +16,7 @@
                     aria-controls="coaches" aria-selected="false">Coaches</a>
             </li>
             <form method="GET" action="{{ route('admin.user') }}">
-                <div class="mb-4">
+                <div class="mb-4 ml-3">
                     <x-text-input id="search" name="search" type="text" placeholder="Search users..."
                         :value="request('search')" class="form-control" />
                     <x-input-error :messages="$errors->get('search')" class="mt-2" />

@@ -10,15 +10,6 @@
                 <div class="p-6 text-gray-900 dark:text-gray-100" style="max-height: 500px; overflow-y: scroll;">
                     <form action="{{ route('admin.classes.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        @if ($errors->any())
-                            <div class="alert alert-danger">
-                                <ul>
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @endif
 
                         <div class="form-group">
                             <label for="image">Class Image</label>
@@ -27,8 +18,7 @@
 
                         <div class="form-group">
                             <label for="name">Class Name</label>
-                            <input type="text" id="name" name="name" class="form-control" required
-                                value="{{ old('name') }}">
+                            <input type="text" id="name" name="name" class="form-control" required value="{{ old('name') }}">
                             @error('name')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
@@ -133,7 +123,7 @@
                             <select id="room_id" name="room_id" class="form-control">
                                 <option value="">Select Room (optional)</option>
                                 @foreach ($rooms as $room)
-                                    <option value="{{ $room->id }}">{{ $room->name }}</option>
+                                    <option value="{{ $room->id }}">{{ $room->name }} - Capacity {{ $room->capacity }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -153,59 +143,72 @@
         </div>
     </div>
 
+    <!-- SweetAlert CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Script SweetAlert untuk menampilkan pesan error
+        @if ($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                html: `<ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>`,
+            });
+        @endif
+
+        // Script SweetAlert untuk menampilkan pesan sukses
+        @if (session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: '{{ session('success') }}',
+                confirmButtonText: 'OK'
+            });
+        @endif
+
+        // JavaScript tambahan
         function updateDescription() {
+            // Update description based on selected category
             const categorySelect = document.getElementById('category_id');
-            const descriptionTextarea = document.getElementById('description');
-
-            // Ambil deskripsi dari atribut data-description di opsi yang dipilih
             const selectedOption = categorySelect.options[categorySelect.selectedIndex];
-            const description = selectedOption.getAttribute('data-description') || '';
+            const description = selectedOption.dataset.description;
 
-            // Isi textarea deskripsi dengan deskripsi dari kategori yang dipilih
-            descriptionTextarea.value = description;
+            const descriptionInput = document.getElementById('description');
+            descriptionInput.value = description;
         }
 
         function filterCoaches() {
             const categoryId = document.getElementById('category_id').value;
-            const coachSelect = document.getElementById('coach_id');
-            const submitBtn = document.getElementById('submitBtn');
-            const noCoachOption = coachSelect.querySelector('.no-coach-option');
-            let coachAvailable = false;
+            const coaches = document.querySelectorAll('#coach_id option');
 
-            // Mengambil semua opsi coach
-            const coaches = coachSelect.querySelectorAll('option:not(.no-coach-option)');
-
-            // Menampilkan atau menyembunyikan opsi pelatih berdasarkan kategori
             coaches.forEach(coach => {
-                if (coach.getAttribute('data-category') == categoryId) {
-                    coach.style.display = "block"; // Tampilkan opsi
-                    coachAvailable = true; // Ada coach yang sesuai
+                if (coach.dataset.category === categoryId || categoryId === '') {
+                    coach.style.display = 'block';
                 } else {
-                    coach.style.display = "none"; // Sembunyikan opsi
+                    coach.style.display = 'none';
                 }
             });
 
-            // Menampilkan opsi "No Coach Available" jika tidak ada coach
-            if (!coachAvailable) {
-                noCoachOption.style.display = "block";
-                coachSelect.value = "no_coach"; // Set value ke "No Coach Available"
-                submitBtn.disabled = true; // Disable submit button
+            // Show 'No Coach Available' if no coaches are available
+            const noCoachOption = document.querySelector('.no-coach-option');
+            if (![...coaches].some(coach => coach.style.display === 'block')) {
+                noCoachOption.style.display = 'block';
             } else {
-                noCoachOption.style.display = "none";
-                submitBtn.disabled = false; // Enable submit button
+                noCoachOption.style.display = 'none';
             }
         }
 
         function updateDayOfWeek() {
             const dateInput = document.getElementById('date');
-            const dayOfWeekSelect = document.getElementById('day_of_week');
             const selectedDate = new Date(dateInput.value);
-            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const dayOfWeek = days[selectedDate.getUTCDay()]; // Ambil hari dari tanggal
+            const options = { weekday: 'long' };
+            const dayOfWeek = selectedDate.toLocaleDateString('id-ID', options);
 
-            // Set nilai pilihan hari sesuai dengan hari yang dipilih
-            dayOfWeekSelect.value = dayOfWeek;
+            const dayOfWeekSelect = document.getElementById('day_of_week');
+            dayOfWeekSelect.value = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
         }
     </script>
 </x-appadmin-layout>
