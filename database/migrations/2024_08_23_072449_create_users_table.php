@@ -18,7 +18,10 @@ return new class extends Migration
         $table->string('phone_number')->after('email')->nullable(); // Menambahkan kolom setelah email
         $table->timestamp('email_verified_at')->nullable();
         $table->string('password');
+        $table->string('profile_image')->nullable();
         $table->enum('role', ['member', 'coach', 'admin']); // Menambahkan kolom role
+        $table->unsignedBigInteger('category_id')->nullable()->after('role');
+        $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null');
         $table->rememberToken();
         $table->timestamps();
         $table->string('status')->default('pending');
