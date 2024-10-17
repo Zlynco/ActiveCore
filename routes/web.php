@@ -6,6 +6,8 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\SearchController;
@@ -41,7 +43,7 @@ Route::view('/pending', 'pending')->name('pending');
 
 
 
-Route::middleware(['auth', 'admin'])->group(function () {
+Route::middleware(['auth', 'admin', 'verified'])->group(function () {
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     // Rute untuk manage users
     Route::get('/admin/users', [AdminController::class, 'manageUsers'])->name('admin.user');
@@ -136,7 +138,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     });
 });
-Route::middleware(['auth', 'role:coach'])->group(function () {
+Route::middleware(['auth', 'role:coach', 'verified'])->group(function () {
     Route::get('/coach/dashboard', [CoachController::class, 'index'])->name('coach.dashboard');
     Route::get('/api/coach/classes', [AdminController::class, 'getClasses']);
     Route::get('/api/coach/coach-bookings', [AdminController::class, 'getCoachBookings']);
@@ -176,13 +178,35 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::get('/profile-admin', [ProfileController::class, 'editAdmin'])->name('profile.edita');
-    Route::get('/profile-coach', [ProfileController::class, 'editCoach'])->name('profile.editc'); // Tambahkan route ini
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Route untuk profil member
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'edit'])->name('edit'); // Halaman edit profil member
+        Route::patch('/', [ProfileController::class, 'update'])->name('update'); // Proses update profil member
+        Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy'); // Hapus profil member
+    });
+
+    // Route untuk profil admin
+    Route::prefix('profile/admin')->name('profile.admin.')->group(function () {
+        Route::get('/', [ProfileController::class, 'editAdmin'])->name('edit'); // Halaman edit profil admin
+        Route::patch('/', [ProfileController::class, 'update'])->name('update'); // Proses update profil admin
+    });
+
+    // Route untuk profil coach
+    Route::prefix('profile/coach')->name('profile.coach.')->group(function () {
+        Route::get('/', [ProfileController::class, 'editCoach'])->name('edit'); // Halaman edit profil coach
+        Route::patch('/', [ProfileController::class, 'update'])->name('update'); // Proses update profil coach
+    });
 });
 
+Route::get('/email/verify', function () {
+    return view('auth.verify-email');
+})->middleware('auth')->name('verification.notice');
+
+Route::get('/email/verify/{id}/{hash}', [VerifyEmailController::class, '__invoke'])
+    ->middleware(['auth', 'signed'])->name('verification.verify');
+
+    Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+    ->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 
 require __DIR__ . '/auth.php';

@@ -20,7 +20,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        return view('auth.register'); // Menampilkan view pendaftaran
+        return view('auth.register');
     }
 
     /**
@@ -31,16 +31,16 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Log::info('Role selected:', ['role' => $request->role]);
-    
+
         // Validasi input pendaftaran
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', 'in:member,coach'],
             'phone_number' => ['required', 'regex:/^[0-9]+$/', 'min:10', 'max:15'],  // Validasi nomor telepon
         ]);
-    
+
         // Membuat user baru dengan data pendaftaran
         $user = User::create([
             'name' => $request->name,
@@ -49,12 +49,11 @@ class RegisteredUserController extends Controller
             'role' => $request->role,
             'phone_number' => $request->phone_number,  // Menyimpan phone_number
         ]);
-    
-        // Menyebarkan event Registered
+
+        // Menyebarkan event Registered untuk mengirim email verifikasi
         event(new Registered($user));
-    
+
         // Redirect ke halaman login setelah pendaftaran
-        return redirect()->route('login');
+        return redirect()->route('login')->with('status', 'Registration successful! Please check your email for verification.');
     }
-    
 }

@@ -9,20 +9,25 @@
         </p>
     </header>
 
+    <!-- Form untuk mengirim ulang verifikasi -->
     <form id="send-verification" method="post" action="{{ route('verification.send') }}">
         @csrf
     </form>
 
-    <form method="post" action="{{ route('profile.update') }}" class="mt-6 space-y-6">
+    <!-- Form untuk update profil -->
+    <form method="post" action="{{ route('profile.admin.update') }}" class="mt-6 space-y-6" enctype="multipart/form-data">
         @csrf
         @method('patch')
+        
         <div>
-            <label for="profile_image">Profile Image</label>
+            <label for="profile_image" class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Profile Image') }}</label>
             <input type="file" name="profile_image" id="profile_image" class="mt-1 block w-full">
+        
             @if ($user->profile_image)
                 <img src="{{ asset('storage/' . $user->profile_image) }}" alt="Profile Image" class="mt-2 w-20 h-20 rounded-full">
             @endif
         </div>
+        
         <div>
             <x-input-label for="name" :value="__('Name')" />
             <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $user->name)" required autofocus autocomplete="name" />
@@ -34,11 +39,10 @@
             <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username" />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
 
-            @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
-                <div>
-                    <p class="text-sm mt-2 text-gray-800 dark:text-gray-200">
+            @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && !$user->hasVerifiedEmail())
+                <div class="mt-2">
+                    <p class="text-sm text-gray-800 dark:text-gray-200">
                         {{ __('Your email address is unverified.') }}
-
                         <button form="send-verification" class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
                             {{ __('Click here to re-send the verification email.') }}
                         </button>
@@ -59,7 +63,6 @@
             <x-text-input id="phone_number" name="phone_number" type="text" class="mt-1 block w-full" :value="old('phone_number', $user->phone_number)" required autocomplete="tel" oninput="this.value = this.value.replace(/[^0-9]/g, '');" />
             <x-input-error class="mt-2" :messages="$errors->get('phone_number')" />
         </div>
-        
 
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('Save') }}</x-primary-button>

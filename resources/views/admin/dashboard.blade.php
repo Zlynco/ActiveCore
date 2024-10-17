@@ -1,7 +1,7 @@
 <x-appadmin-layout>
 
     <!-- Page Heading -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-3">
         <h1 class="h3 mb-0 text-gray-800">Dashboard Admin</h1>
     </div>
 
@@ -84,7 +84,7 @@
         <!-- Monthly Earnings Chart -->
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <div class="card-header py-2 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Earnings Overview</h6>
                 </div>
                 <div class="card-body">
@@ -96,9 +96,9 @@
         </div>
 
         <!-- Pie Chart untuk Kelas Populer -->
-        <div class="col-xl-4 col-lg-5">
+        <div class="col-xl-4 col-lg-5 ">
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <div class="card-header py-2 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Popular Classes This Month</h6>
                 </div>
                 <div class="card-body">

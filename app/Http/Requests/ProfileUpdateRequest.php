@@ -25,7 +25,8 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255', 
                 Rule::unique(User::class)->ignore($this->user()->id)
             ],
-            'phone_number' => ['nullable', 'string', 'max:15'], // Aturan untuk nomor telepon
+'phone_number' => ['nullable', 'string', 'max:15', 'regex:/^[0-9]+$/'], // Memastikan hanya angka yang diizinkan
+
         ];
     }
 }
