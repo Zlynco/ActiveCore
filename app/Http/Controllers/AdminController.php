@@ -711,10 +711,10 @@ class AdminController extends Controller
             });
         }
 
-        $bookings = $bookingsQuery->orderBy('booking_date', 'desc')
+        $bookings = $bookingsQuery
             ->orderBy('created_at', 'desc')
             ->get();
-        $coachBookings = $coachBookingsQuery->orderBy('booking_date', 'desc')
+        $coachBookings = $coachBookingsQuery
             ->orderBy('created_at', 'desc')
             ->get();
 

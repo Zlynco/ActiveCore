@@ -48,7 +48,7 @@
                         <p>No classes found.</p>
                     @else
                         <!-- Tambahkan kelas 'table-responsive' agar tabel bisa di-scroll secara horizontal -->
-                        <div class="table-responsive" style="max-height: 360px; overflow-y: scroll;">
+                        <div class="table-responsive" style="max-height: 350px; overflow-y: scroll;">
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>

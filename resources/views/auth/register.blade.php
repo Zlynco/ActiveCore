@@ -11,21 +11,21 @@
         </div>
 
         <!-- Email Address -->
-        <div class="mt-4">
+        <div class="mt-3">
             <x-input-label for="email" :value="__('Email')" />
             <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" placeholder="Enter your email" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
 <!-- Phone Number -->
-<div class="mt-4">
+<div class="mt-3">
     <x-input-label for="phone_number" :value="__('Phone Number')" />
     <x-text-input id="phone_number" name="phone_number" type="text" class="mt-1 block w-full" :value="old('phone_number')" required autocomplete="tel" oninput="this.value = this.value.replace(/[^0-9]/g, '');" />
     <x-input-error class="mt-2" :messages="$errors->get('phone_number')" />
 </div>
 
         <!-- Password -->
-        <div class="mt-4">
+        <div class="mt-3">
             <x-input-label for="password" :value="__('Password')" />
 
             <x-text-input id="password" class="block mt-1 w-full"
@@ -37,7 +37,7 @@
         </div>
 
         <!-- Confirm Password -->
-        <div class="mt-4">
+        <div class="mt-3">
             <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
 
             <x-text-input id="password_confirmation" class="block mt-1 w-full"
@@ -48,7 +48,7 @@
         </div>
 
         <!-- Role -->
-        <div class="mt-4">
+        <div class="mt-3">
             <x-input-label for="role" :value="__('Role')" />
             <select id="role" name="role" class="block mt-1 w-full form-control" required>
                 <option value="" disabled selected>Select your role</option>
