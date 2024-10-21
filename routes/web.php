@@ -31,7 +31,7 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])
 
 // Rute untuk menangani login secara POST
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
-
+//default
 Route::get('/', function () {
     return redirect()->route('login');
 });
