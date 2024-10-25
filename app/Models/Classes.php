@@ -11,9 +11,10 @@ class Classes extends Model
     use HasFactory;
 
     protected $fillable = [
-        'image', 'name', 'description', 'day_of_week', 
-        'date', 'start_time', 'end_time', 'price', 
-        'coach_id', 'category_id', 'quota', 'registered_count', 
+        'id',
+        'image', 'name', 'description', 'day_of_week',
+        'date', 'start_time', 'end_time', 'price',
+        'coach_id', 'category_id', 'quota', 'registered_count',
         'room_id', 'recurrence',
     ];
 

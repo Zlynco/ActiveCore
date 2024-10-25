@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApiController;
+use App\Http\Controllers\classController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +17,19 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    // Tambahkan rute lain yang memerlukan autentikasi di sini
 });
+
+Route::get('/posts', function () {
+    dd('test api kocak');
+});
+Route::get('/classes', [ApiController::class, 'apikelas']);
+Route::get('/member', [ApiController::class, 'apiMember']);
+Route::get('/coach', [ApiController::class, 'apiCoach']);
+Route::get('/booking', [ApiController::class, 'apiBooking']);
+Route::get('/coachbooking', [ApiController::class, 'apiCoachBooking']);
+Route::get('/attendance', [ApiController::class, 'apiAttendance']);

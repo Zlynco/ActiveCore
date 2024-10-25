@@ -170,7 +170,7 @@ Route::middleware(['auth', 'role:coach', 'verified'])->group(function () {
         Route::post('/attendances/scan', [CoachController::class, 'scanQrCode'])->name('attendances.scan');
     });
 });
-
+//Route::get('/posts', function(){dd('test api');});
 
 
 Route::get('/dashboard', function () {
