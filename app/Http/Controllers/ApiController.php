@@ -24,6 +24,26 @@ class ApiController extends Controller
         //return response()->json(['data' => $classes]);
         return ClassResource::collection($classes);
     }
+    public function storeClass(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'day_of_week' => 'required|string',
+            'date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'price' => 'required|numeric|min:0',
+            'coach_id' => 'required|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'quota' => 'required|integer|min:1',
+            'category_id' => 'required|exists:categories,id',
+            'room_id' => 'nullable|exists:rooms,id',
+            'recurrence' => 'required|in:once,monthly',
+        ]);
+        return response()->json('bisa diakses');
+    }
+
     public function apiMember()
     {
         $member = User::where('role', 'member')->get();

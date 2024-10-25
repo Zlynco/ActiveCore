@@ -39,7 +39,7 @@
                         'coach' => route('profile.coach.edit'),
                         default => route('profile.edit'),
                     }">
-                    
+
                         {{ match ($user->role) {
                             'admin' => __('Profile Admin'),
                             'coach' => __('Profile Coach'),

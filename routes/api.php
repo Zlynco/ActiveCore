@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\classController;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,9 +29,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::get('/posts', function () {
     dd('test api kocak');
 });
+
 Route::get('/classes', [ApiController::class, 'apikelas']);
+Route::post('/classes', [ApiController::class, 'storeClass']);
 Route::get('/member', [ApiController::class, 'apiMember']);
 Route::get('/coach', [ApiController::class, 'apiCoach']);
 Route::get('/booking', [ApiController::class, 'apiBooking']);
 Route::get('/coachbooking', [ApiController::class, 'apiCoachBooking']);
 Route::get('/attendance', [ApiController::class, 'apiAttendance']);
+Route::middleware('api')->group(function () {
+    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
+});
