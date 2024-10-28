@@ -195,25 +195,25 @@
             }
         });
     </script>
-    <script>
-        // Event listener untuk tombol yang memicu modal
-        document.addEventListener('DOMContentLoaded', function() {
-            const qrCodeModal = document.getElementById('qrCodeModal');
-            qrCodeModal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget; // Tombol yang memicu modal
-                const bookingCode = button.getAttribute('data-booking-code'); // Ambil booking code
+<script>
+    // Event listener untuk tombol yang memicu modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const qrCodeModal = document.getElementById('qrCodeModal');
+        qrCodeModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget; // Tombol yang memicu modal
+            const bookingCode = button.getAttribute('data-booking-code'); // Ambil booking code
 
-                // Generate QR code dan tampilkan di modal
-                const qrCodeHtml = generateQRCode(bookingCode);
-                document.getElementById('qrCodeContent').innerHTML = qrCodeHtml;
-            });
+            // Generate QR code dan tampilkan di modal
+            const qrCodeHtml = generateQRCode(bookingCode);
+            document.getElementById('qrCodeContent').innerHTML = qrCodeHtml;
         });
+    });
 
-        // Fungsi untuk menghasilkan QR code
-        function generateQRCode(bookingCode) {
-            // Ganti dengan URL path yang sesuai jika perlu
-            const qrCodeUrl = `/qrcodes/QR-${bookingCode}.png`; // Asumsi QR code disimpan di folder qrcodes
-            return `<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: auto;">`;
-        }
-    </script>
+    // Fungsi untuk menghasilkan QR code
+    function generateQRCode(bookingCode) {
+        // Ganti dengan URL path yang sesuai jika perlu
+        const qrCodeUrl = `{{ asset('qrcodes/QR-${bookingCode}.png') }}`; // Menggunakan Laravel asset helper
+        return `<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: auto;">`;
+    }
+</script>
 </x-appadmin-layout>

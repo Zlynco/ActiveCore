@@ -10,6 +10,7 @@ use Illuminate\Foundation\Auth\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -25,65 +26,66 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-   public function store(Request $request): RedirectResponse
-{
-    // Validasi dan autentikasi pengguna
-    $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required'],
-    ]);
+    public function store(Request $request): RedirectResponse
+    {
+        // Validasi dan autentikasi pengguna
+        $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
 
-    // Autentikasi pengguna
-    if (Auth::attempt($request->only('email', 'password'))) {
-        // Regenerasi session untuk mencegah session fixation
-        $request->session()->regenerate();
+        // Autentikasi pengguna
+        if (Auth::attempt($request->only('email', 'password'))) {
+            // Regenerasi session untuk mencegah session fixation
+            $request->session()->regenerate();
 
-        // Ambil data pengguna yang sedang login
-        $user = ModelsUser::find(Auth::id());
+            // Ambil data pengguna yang sedang login
+            $user = ModelsUser::find(Auth::id());
 
-        // Cek role dan status pengguna
-        if ($user->role === 'coach') {
-            if ($user->status === 'pending') {
-                // Jika statusnya pending, logout dan beri pesan kesalahan
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+            // Cek role dan status pengguna
+            if ($user->role === 'coach') {
+                // Cek status pengguna
+                if ($user->status === 'pending') {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return redirect()->route('login')->withErrors([
+                        'email' => 'Your coach registration is pending approval. Please wait until an admin approves your registration.',
+                    ]);
+                } elseif ($user->status === 'rejected') {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return redirect()->route('login')->withErrors([
+                        'email' => 'Your coach registration has been rejected. Please contact support for more information.',
+                    ]);
+                }
 
-                return redirect()->route('login')->withErrors([
-                    'email' => 'Your coach registration is pending approval. Please wait until an admin approves your registration.',
-                ]);
-            } elseif ($user->status === 'rejected') {
-                // Jika statusnya rejected, logout dan beri pesan kesalahan
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-
-                return redirect()->route('login')->withErrors([
-                    'email' => 'Your coach registration has been rejected. Please contact support for more information.',
-                ]);
+                // Jika coach diterima, buat token
+                $token = $user->createToken('authTokenCoach')->plainTextToken;
+                Log::channel('token')->info('Generated Token for Coach: ' . $token); // Log token untuk coach
+                return redirect()->route('coach.dashboard');
             }
 
-            // Jika coach diterima, buat token dan redirect ke halaman dashboard coach
-            $token = $user->createToken('authTokenCoach')->plainTextToken; // Buat token
-            return redirect()->route('coach.dashboard')->with(['token' => $token]); // Kirim token jika perlu
+            // Arahkan pengguna berdasarkan perannya
+            if ($user->role === 'admin') {
+                $token = $user->createToken('authTokenAdmin')->plainTextToken;
+                Log::channel('token')->info('Generated Token for Admin: ' . $token); // Log token untuk admin
+                return redirect()->route('admin.dashboard');
+            }
+
+            // Redirect untuk pengguna biasa (member)
+            $token = $user->createToken('authTokenMember')->plainTextToken;
+            Log::channel('token')->info('Generated Token for Member: ' . $token); // Log token untuk member
+            return redirect()->intended(RouteServiceProvider::HOME);
         }
 
-        // Arahkan pengguna berdasarkan perannya
-        if ($user->role === 'admin') {
-            $token = $user->createToken('authTokenAdmin')->plainTextToken; // Buat token untuk admin
-            return redirect()->route('admin.dashboard')->with(['token' => $token]); // Kirim token jika perlu
-        }
-
-        // Redirect untuk pengguna biasa (member)
-        $token = $user->createToken('authTokenMember')->plainTextToken; // Buat token untuk member
-        return redirect()->intended(RouteServiceProvider::HOME)->with(['token' => $token]); // Kirim token jika perlu
+        // Jika autentikasi gagal
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ]);
     }
 
-    // Jika autentikasi gagal
-    return back()->withErrors([
-        'email' => 'The provided credentials do not match our records.',
-    ]);
-}
 
     /**
      * Destroy an authenticated session.

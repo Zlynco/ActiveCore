@@ -18,26 +18,30 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-
+//NEED AUTH GROUP
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
     // Tambahkan rute lain yang memerlukan autentikasi di sini
+    Route::get('/logout', [ApiController::class, 'destroyAuth']);
+    Route::get('/me', [ApiController::class, 'me']);
+    //Update
+    Route::patch('/user', [ApiController::class, 'updateUser']);
+    //POST
+    Route::post('/booking', [ApiController::class, 'storeBooking']);
+    Route::post('/coachbooking', [ApiController::class, 'storeCoachBooking']);
+    Route::post('/attendance', [ApiController::class, 'storeAttendance']);
 });
 
-Route::get('/posts', function () {
+Route::get('/tes', function () {
     dd('test api kocak');
 });
-
+//no need sanctum
 Route::get('/classes', [ApiController::class, 'apikelas']);
-Route::post('/classes', [ApiController::class, 'storeClass']);
 Route::get('/member', [ApiController::class, 'apiMember']);
 Route::get('/coach', [ApiController::class, 'apiCoach']);
 Route::get('/booking', [ApiController::class, 'apiBooking']);
 Route::get('/coachbooking', [ApiController::class, 'apiCoachBooking']);
 Route::get('/attendance', [ApiController::class, 'apiAttendance']);
-Route::middleware('api')->group(function () {
-    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
-    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
-});
+Route::post('/login', [ApiController::class, 'storeAuth']);
