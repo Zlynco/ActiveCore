@@ -18,6 +18,11 @@ class Classes extends Model
         'room_id', 'recurrence',
     ];
 
+    public function members()
+    {
+        return $this->belongsTo(User::class, 'member_id')->where('role', 'member');
+    }
+
     public function coach()
     {
         return $this->belongsTo(User::class, 'coach_id')->where('role', 'coach');

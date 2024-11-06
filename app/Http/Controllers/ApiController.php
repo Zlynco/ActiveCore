@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ApiResource;
+use Illuminate\Validation\Rules;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\ClassResource;
@@ -10,6 +14,7 @@ use App\Http\Resources\CoachBookingResource;
 use App\Http\Resources\CoachResource;
 use App\Http\Resources\MemberResource;
 use App\Http\Resources\MeResource;
+use Illuminate\Support\Facades\Hash;
 use App\Models\Attendance;
 use App\Models\Booking;
 use App\Models\Classes;
@@ -19,6 +24,7 @@ use Carbon\Carbon;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +33,13 @@ use Illuminate\Support\Facades\Storage;
 class ApiController extends Controller
 {
     //CLASS DATA API
+    public function apikelasCoach()
+    {
+        $coach = Auth::user();
+        $classes = $coach->classes;
+        //return response()->json(['data' => $classes]);
+        return ClassResource::collection($classes);
+    }
     public function apikelas()
     {
         $classes = Classes::all();
@@ -331,14 +344,46 @@ class ApiController extends Controller
 
 
     //function authentication
+    public function registerStoreAuth(Request $request): JsonResponse
+{
+    // Validasi input
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8|confirmed',
+        'role' => 'required|string|in:member,coach', // Validasi untuk role
+        'phone_number' => ['required', 'regex:/^[0-9]+$/', 'min:10', 'max:15'],
+    ]);
 
-    public function storeAuth(Request $request): JsonResponse
+    // Buat pengguna baru
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'role' => $request->role, // Menyimpan role dari request
+        'phone_number' => $request->phone_number,
+    ]);
+
+    // Event untuk mengirim notifikasi jika diperlukan
+    event(new Registered($user));
+
+    // Login pengguna
+    Auth::login($user);
+
+    return response()->json([
+        'message' => 'Registration successful',
+        'user' => new MeResource($user) // Mengembalikan informasi pengguna yang baru terdaftar
+    ], 201);
+}
+
+    public function loginStoreAuth(Request $request): JsonResponse
     {
         $request->validate([
+            'name' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
-        if (Auth::attempt($request->only('email', 'password'))) {
+        if (Auth::attempt($request->only('name','email', 'password'))) {
             $user = User::find(Auth::id());
 
             if ($user->role === 'coach') {
@@ -461,5 +506,73 @@ class ApiController extends Controller
 
         // Generate QR code dan simpan ke file
         QrCode::format('png')->size(300)->generate($bookingCode, $qrCodePath);
+    }
+    //OTHERS
+    public function getClasses()
+    {
+        // Ambil data coach yang sedang login
+        $coach = Auth::user();
+
+        // Ambil kelas yang harus diajar oleh coach
+        $classes = Classes::where('coach_id', $coach->id)->with('category')->get();
+
+        // Format data untuk API
+        $events = $classes->map(function ($class) {
+            return [
+                'name' => $class->name,
+                'description' => $class->description,
+                'date' => Carbon::parse($class->date)->format('Y-m-d'), // Menggunakan Carbon untuk mengonversi dan format
+                'day_of_week' => Carbon::parse($class->date)->format('l'), // Menggunakan Carbon untuk mengonversi dan mendapatkan hari
+                'category_id' => $class->category_id ? $class->category->name : 'No Category', // Mengambil nama kategori
+                'start_time' => Carbon::parse($class->date . ' ' . $class->start_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu mulai
+                'end_time' => Carbon::parse($class->date . ' ' . $class->end_time)->format('Y-m-d\TH:i:s'), // Gabungkan tanggal dan waktu selesai
+                'price' => $class->price,
+                'room' => $class->room->name ?? 'No Room Assigned',
+                'registered_count' => $class->registered_count,
+            ];
+        });
+
+        return response()->json($events);
+    }
+
+    public function getCoachBookings(Request $request)
+    {
+        // Ambil ID coach dari yang sedang login
+        $coachId = auth()->user()->id;
+
+        $bookings = CoachBooking::with(['coach', 'member']) // Pastikan untuk memuat relasi dengan member
+            ->where('coach_id', $coachId) // Filter berdasarkan ID coach yang sedang login
+            ->where('booking_date', '>=', now()) // Mengambil booking yang akan datang
+            ->get();
+
+        // Format data untuk FullCalendar
+        $formattedBookings = $bookings->map(function ($booking) {
+            return [
+                'title' => 'Booked with ' . $booking->member->name, // Tampilkan nama member
+                'start' => $booking->booking_date . 'T' . $booking->start_booking_time,
+                'end' => $booking->booking_date . 'T' . $booking->end_booking_time,
+                'extendedProps' => [
+                    'coach' => $booking->coach->name,
+                    'member' => $booking->member->name, // Menyimpan nama member
+                    'session_count' => $booking->session_count,
+                ],
+            ];
+        });
+
+        return response()->json($formattedBookings);
+    }
+    public function getPopularClasses()
+    {
+        $currentMonth = Carbon::now()->month;
+
+        $popularClasses = DB::table('bookings')
+            ->join('classes', 'bookings.class_id', '=', 'classes.id')
+            ->join('categories', 'classes.category_id', '=', 'categories.id')
+            ->whereMonth('bookings.booking_date', $currentMonth)
+            ->select('categories.name', DB::raw('COUNT(bookings.id) as total_bookings'))
+            ->groupBy('categories.name')
+            ->get();
+
+        return response()->json($popularClasses);
     }
 }
