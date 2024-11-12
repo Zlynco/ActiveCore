@@ -136,12 +136,14 @@ Route::middleware(['auth', 'admin', 'verified'])->group(function () {
         Route::get('/api/available-dates', [AdminController::class, 'getAvailableDates']);
         Route::get('/api/coach/{coach}/availability', [AdminController::class, 'getAvailabilityByCoach']);
         Route::get('/api/popular-classes', [AdminController::class, 'getPopularClasses']);
-
+        Route::get('/admin/bookings/available-times', [AdminController::class, 'getAvailableTimes'])->name('admin.bookings.available-times');
+        Route::get('/coach/classes/{coachId}', [AdminController::class, 'getClassesByCoach']);
     });
 });
 Route::middleware(['auth', 'role:coach', 'verified'])->group(function () {
     Route::get('/coach/dashboard', [CoachController::class, 'index'])->name('coach.dashboard');
     Route::get('/api/coach/classes', [AdminController::class, 'getClasses']);
+    Route::get('/api/coach/coach-attendance', [AdminController::class, 'getCoachAttendance']);
     Route::get('/api/coach/coach-bookings', [AdminController::class, 'getCoachBookings']);
     Route::get('/coach/check-availability', [CoachController::class, 'checkAvailability']);
 

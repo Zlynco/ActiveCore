@@ -121,18 +121,18 @@ class AdminController extends Controller
             'categories' => 'required|array',
             'categories.*' => 'exists:categories,id',
         ]);
-    
+
         Log::channel('userlog')->info('Proses update coach dimulai.', ['coach_id' => $id]);
         $coach = User::findOrFail($id);
         $coach->update($request->only(['name', 'email', 'phone_number'])); // Tambahkan phone_number
-    
+
         // Sinkronisasi kategori
         $coach->categories()->sync($request->categories);
-    
+
         Log::channel('userlog')->info('Coach berhasil diupdate.', ['coach_id' => $id]);
         return redirect()->route('admin.user')->with('success', 'Coach updated successfully');
     }
-    
+
 
     // Controller Method untuk Delete Coach
     public function deleteCoach($id)
@@ -751,45 +751,45 @@ class AdminController extends Controller
         return view('admin.booking', compact('bookings', 'coachBookings', 'categories'));
     }
     public function createBooking(Request $request)
-{
-    Log::channel('booking')->info('Menyiapkan halaman untuk membuat booking baru.');
+    {
+        Log::channel('booking')->info('Menyiapkan halaman untuk membuat booking baru.');
 
-    // Ambil semua kategori
-    $categories = Category::all();
+        // Ambil semua kategori
+        $categories = Category::all();
 
-    // Ambil semua kelas, termasuk gambar dan booking yang terkait
-    $classesQuery = Classes::query();
+        // Ambil semua kelas, termasuk gambar dan booking yang terkait
+        $classesQuery = Classes::query();
 
-    // Filter kelas yang waktunya belum berlalu
-    $now = Carbon::now(); // Mendapatkan waktu sekarang
-    $classesQuery->where('date', '>=', $now->toDateString()) // Memastikan tanggal kelas tidak di masa lalu
-                  ->where(function($query) use ($now) {
-                      $query->where('start_time', '>', $now->toTimeString())
-                            ->orWhere('date', '>', $now->toDateString());
-                  });
+        // Filter kelas yang waktunya belum berlalu
+        $now = Carbon::now(); // Mendapatkan waktu sekarang
+        $classesQuery->where('date', '>=', $now->toDateString()) // Memastikan tanggal kelas tidak di masa lalu
+            ->where(function ($query) use ($now) {
+                $query->where('start_time', '>', $now->toTimeString())
+                    ->orWhere('date', '>', $now->toDateString());
+            });
 
-    // Filter berdasarkan tanggal jika ada
-    if ($request->has('booking_date') && !empty($request->booking_date)) {
-        $classesQuery->whereDate('date', $request->booking_date);
+        // Filter berdasarkan tanggal jika ada
+        if ($request->has('booking_date') && !empty($request->booking_date)) {
+            $classesQuery->whereDate('date', $request->booking_date);
+        }
+
+        // Filter kelas berdasarkan kategori jika ada
+        if ($request->has('category') && !empty($request->category)) {
+            $classesQuery->where('category_id', $request->category);
+        }
+
+        // Ambil kelas yang telah difilter
+        $classes = $classesQuery->get();
+
+        // Logging data kelas
+        Log::channel('booking')->info('Data kelas berhasil dipersiapkan.', [
+            'classes_count' => $classes->count(),
+            'date_generated' => Carbon::now()->toDateTimeString()
+        ]);
+
+        // Kirim data ke view
+        return view('admin.bookings.create', compact('classes', 'categories'));
     }
-
-    // Filter kelas berdasarkan kategori jika ada
-    if ($request->has('category') && !empty($request->category)) {
-        $classesQuery->where('category_id', $request->category);
-    }
-
-    // Ambil kelas yang telah difilter
-    $classes = $classesQuery->get();
-
-    // Logging data kelas
-    Log::channel('booking')->info('Data kelas berhasil dipersiapkan.', [
-        'classes_count' => $classes->count(),
-        'date_generated' => Carbon::now()->toDateTimeString()
-    ]);
-
-    // Kirim data ke view
-    return view('admin.bookings.create', compact('classes', 'categories'));
-}
 
 
     public function storeBooking(Request $request)
@@ -1004,6 +1004,45 @@ class AdminController extends Controller
 
         return response()->json(['availableDates' => $availableDates]);
     }
+    public function getAvailableTimes(Request $request)
+    {
+        // Validasi request
+        $request->validate([
+            'coach_id' => 'required|exists:coaches,id',
+            'booking_date' => 'required|date',
+        ]);
+
+        // Ambil ID coach dan tanggal booking
+        $coachId = $request->coach_id;
+        $bookingDate = $request->booking_date;
+
+        // Ambil semua booking untuk coach pada tanggal tersebut
+        $bookings = Booking::where('coach_id', $coachId)
+            ->whereDate('booking_date', $bookingDate)
+            ->get();
+
+        // Tentukan waktu yang sudah terambil oleh booking
+        $bookedTimes = [];
+        foreach ($bookings as $booking) {
+            $bookedTimes[] = $booking->start_booking_time;
+        }
+
+        // Tentukan waktu yang tersedia
+        $allTimes = [];
+        for ($hour = 6; $hour < 22; $hour++) {
+            for ($minute = 0; $minute < 60; $minute += 30) {
+                $time = sprintf('%02d:%02d', $hour, $minute);
+                if (!in_array($time, $bookedTimes)) {
+                    $allTimes[] = $time;
+                }
+            }
+        }
+        Log::channel('booking')->info('Available times for coach ' . $coachId . ' on ' . $bookingDate, ['available_times' => $allTimes]);
+        // Kembalikan data dalam format JSON
+        return response()->json([
+            'available_times' => $allTimes,
+        ]);
+    }
 
 
     public function createCoachBooking()
@@ -1041,6 +1080,8 @@ class AdminController extends Controller
         ]);
 
         $userId = Auth::id();
+
+
         $coachId = $request->input('coach_id');
         $bookingDate = Carbon::parse($request->input('booking_date'));
 
@@ -1048,7 +1089,17 @@ class AdminController extends Controller
         $startBookingTime = Carbon::parse($request->input('start_booking_time'))->format('H:i:s');
         $endBookingTime = Carbon::parse($request->input('end_booking_time'))->format('H:i:s');
 
-        // 1. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
+        // 1. Periksa apakah coach memiliki status 'Excused' pada tanggal booking
+        $excusedAttendance = Attendance::where('user_id', $coachId)
+            ->whereDate('attendance_date', $bookingDate->format('Y-m-d'))
+            ->where('status', 'Excused')
+            ->exists();
+
+        if ($excusedAttendance) {
+            return redirect()->back()->with('error', 'Coach is excused on the selected date and cannot be booked.')->withInput();
+        }
+
+        // 2. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
         $hasBooking = CoachBooking::where('coach_id', $coachId)
             ->whereDate('booking_date', $bookingDate->format('Y-m-d'))
             ->where(function ($query) use ($startBookingTime, $endBookingTime) {
@@ -1065,7 +1116,7 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'Coach is already booked for the selected date and time.')->withInput();
         }
 
-        // 2. Ambil nama hari dari tanggal booking yang dipilih
+        // 3. Ambil nama hari dari tanggal booking yang dipilih
         $daysOfWeek = [
             'Sunday' => 'Minggu',
             'Monday' => 'Senin',
@@ -1078,7 +1129,7 @@ class AdminController extends Controller
         $dayOfWeekEnglish = $bookingDate->format('l'); // Ambil nama hari dalam bahasa Inggris (contoh: 'Monday')
         $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish]; // Ubah ke bahasa Indonesia (contoh: 'Senin')
 
-        // 3. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
+        // 4. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
         $hasClass = Classes::where('coach_id', $coachId)
             ->where('day_of_week', $dayOfWeek) // Cocokkan hari
             ->where(function ($query) use ($startBookingTime, $endBookingTime) {
@@ -1132,6 +1183,7 @@ class AdminController extends Controller
 
         return redirect()->route('admin.booking')->with('success', 'Coach booked successfully!');
     }
+
 
 
     public function editCoachBooking($id)
@@ -1205,6 +1257,19 @@ class AdminController extends Controller
 
         return redirect()->back()->with('success', 'Coach booking deleted successfully.');
     }
+    public function getClassesByCoach($coachId)
+    {
+        // Pastikan ada kelas yang terkait dengan coach tersebut
+        $classes = Classes::where('coach_id', $coachId)->get();
+
+        if ($classes->isEmpty()) {
+            return response()->json(['message' => 'No classes found'], 404);
+        }
+
+        // Mengembalikan data kelas dalam format JSON
+        return response()->json($classes);
+    }
+
 
     public function manageAttendance(Request $request)
     {
@@ -1250,13 +1315,26 @@ class AdminController extends Controller
     {
         Log::channel('attendance')->info('Admin Telah Membuat Attendance Coach Baru');
 
+        // Ambil semua coaches
         $coaches = User::where('role', 'coach')->get();
-        $classes = Classes::all();
-        Log::channel('attendance')->info('Daftar coaches:', $coaches->toArray());
-        Log::channel('attendance')->info('Daftar classes:', $classes->toArray());
+
+        // Ambil kelas yang dimulai dalam 20 hari dari hari ini
+        $today = Carbon::today();
+        $twentyDaysLater = $today->copy()->addDays(20); // Menyimpan tanggal 20 hari ke depan agar tidak terubah
+        Log::channel('attendance')->info('Tanggal hari ini: ' . $today);
+        Log::channel('attendance')->info('Tanggal 20 hari ke depan: ' . $twentyDaysLater);
+
+        // Ambil kelas yang memiliki tanggal mulai dalam rentang waktu ini
+        $classes = Classes::where('date', '>=', $today)
+            ->where('date', '<=', $twentyDaysLater) // Filter kelas yang dalam rentang 20 hari ke depan
+            ->get();
+
+        // Log kelas yang ditemukan
+        Log::channel('attendance')->info('Daftar classes yang ditemukan: ', $classes->toArray());
 
         return view('admin.attendances.create', compact('coaches', 'classes'));
     }
+
 
     public function storeAttendanceCoaches(Request $request)
     {
@@ -1689,6 +1767,33 @@ class AdminController extends Controller
 
         return response()->json($formattedBookings);
     }
+    public function getCoachAttendance(Request $request)
+    {
+        // Ambil ID coach dari yang sedang login
+        $coachId = auth()->user()->id;
+
+        // Ambil data attendance coach
+        $attendances = Attendance::where('user_id', $coachId)
+            ->where('attendance_date', '>=', now()) // Mengambil data attendance mulai hari ini ke depan
+            ->get();
+
+        // Format data untuk FullCalendar
+        $formattedAttendances = $attendances->map(function ($attendance) {
+            return [
+                'title' => ucfirst($attendance->status), // Tampilkan status attendance (Excused, Present, etc.)
+                'start' => $attendance->attendance_date . 'T00:00:00', // Gunakan waktu awal hari
+                'end' => $attendance->attendance_date . 'T23:59:59',  // Gunakan waktu akhir hari
+                'color' => $attendance->status === 'Excused' ? 'red' : 'green', // Warna sesuai status
+                'extendedProps' => [
+                    'reason' => $attendance->reason, // Tambahkan alasan jika ada
+                    'status' => $attendance->status, // Tambahkan status
+                ],
+            ];
+        });
+
+        return response()->json($formattedAttendances);
+    }
+
     public function getPopularClasses()
     {
         $currentMonth = Carbon::now()->month;

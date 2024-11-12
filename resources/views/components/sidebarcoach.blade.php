@@ -51,13 +51,6 @@
             <span>Attendances</span>
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link" href="{{ route('coach.memberAttendance') }}">
-            <i class="fas fa-fw fa-chalkboard-teacher"></i>
-            <span>Member Attendances</span>
-        </a>
-    </li>
-    
 
     <!-- Divider -->
     <hr class="sidebar-divider">

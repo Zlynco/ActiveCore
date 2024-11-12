@@ -24,7 +24,7 @@ use Carbon\Carbon;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
-
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -47,8 +47,11 @@ class ApiController extends Controller
         return ClassResource::collection($classes);
     }
 
-    public function storeClass(Request $request)
+    public function storeClass(Request $request): JsonResponse
     {
+        Log::channel('classes')->info('Proses pembuatan kelas baru dimulai.');
+
+        // Validasi input
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
@@ -58,29 +61,91 @@ class ApiController extends Controller
             'end_time' => 'required|date_format:H:i',
             'price' => 'required|numeric|min:0',
             'coach_id' => 'required|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'quota' => 'required|integer|min:1',
             'category_id' => 'required|exists:categories,id',
             'room_id' => 'nullable|exists:rooms,id',
             'recurrence' => 'required|in:once,monthly',
         ]);
-        $class = Classes::create([
-            'name' => $request->input('name'),
-            'description' => $request->input('description'),
-            'day_of_week' => $request->input('day_of_week'),
-            'date' => $request->input('date'),
-            'start_time' => $request->input('start_time'),
-            'end_time' => $request->input('end_time'),
-            'price' => $request->input('price'),
-            'coach_id' => $request->input('coach_id'),
-            'quota' => $request->input('quota'),
-            'category_id' => $request->input('category_id'),
-            'room_id' => $request->input('room_id'),
-            'recurrence' => $request->input('recurrence'),
-        ]);
+
+        // Cek kapasitas ruangan
+        $room = Room::find($request->room_id);
+        if ($room && $request->quota > $room->capacity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Quota tidak boleh lebih dari kapasitas ruangan: ' . $room->capacity
+            ], 400);
+        }
+
+        // Cek apakah ada kelas lain pada hari dan waktu yang sama di ruangan yang sama
+        $existingClassInSameRoom = Classes::where('day_of_week', $request->day_of_week)
+            ->where('date', $request->date)
+            ->where('room_id', $request->room_id)
+            ->where(function ($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('start_time', '<', $request->end_time)
+                        ->where('end_time', '>', $request->start_time);
+                });
+            })
+            ->exists();
+
+        // Cek apakah ada kelas lain dengan coach yang sama pada waktu yang sama
+        $existingClassForSameCoach = Classes::where('date', $request->date)
+            ->where('start_time', '<', $request->end_time)
+            ->where('end_time', '>', $request->start_time)
+            ->where('coach_id', $request->coach_id)
+            ->exists();
+
+        $roomName = $room->name ?? 'Ruang tidak ditemukan';
+        if ($existingClassInSameRoom) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sudah ada kelas pada hari dan waktu yang sama di room: ' . $roomName
+            ], 400);
+        }
+
+        if ($existingClassForSameCoach) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Coach sudah memiliki kelas pada hari dan waktu yang sama.'
+            ], 400);
+        }
+
+        // Unggah gambar jika ada
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('images/classes', 'public');
+        }
+
+        // Jika pilihan untuk membuat jadwal bulanan dipilih
+        if ($request->recurrence === 'monthly') {
+            $this->createMonthlySchedule($request, $imagePath);
+        } else {
+            // Simpan kelas baru untuk satu kali jadwal
+            $newClass = Classes::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'day_of_week' => $request->day_of_week,
+                'date' => $request->date,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'price' => $request->price,
+                'coach_id' => $request->coach_id,
+                'image' => $imagePath ? Storage::url($imagePath) : null,
+                'quota' => $request->quota,
+                'registered_count' => 0,
+                'category_id' => $request->category_id,
+                'room_id' => $request->room_id,
+                'recurrence' => 'once',
+            ]);
+        }
+
+        Log::channel('classes')->info('Kelas baru berhasil dibuat.', ['name' => $request->name]);
 
         return response()->json([
-            'message' => 'Class created successfully',
-            'class' => $class
+            'success' => true,
+            'message' => 'Kelas berhasil dibuat.',
+            'data' => $newClass ?? []
         ], 201);
     }
     public function destroyClass($id)
@@ -519,6 +584,7 @@ class ApiController extends Controller
         // Format data untuk API
         $events = $classes->map(function ($class) {
             return [
+                'id' => $class->id,
                 'name' => $class->name,
                 'description' => $class->description,
                 'date' => Carbon::parse($class->date)->format('Y-m-d'), // Menggunakan Carbon untuk mengonversi dan format

@@ -10,19 +10,6 @@
                     <form action="{{ route('admin.attendances.store') }}" method="POST">
                         @csrf
                         <div class="form-group">
-                            <label for="class_id">Class</label>
-                            <select id="class_id" name="class_id" class="form-control">
-                                <option value="">No Class</option>  <!-- Opsi No Class -->
-                                @foreach($classes as $class)
-                                    <option value="{{ $class->id }}">{{ $class->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('class_id')
-                                <div class="text-danger">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="form-group">
                             <label for="user_id">Coach</label>
                             <select name="user_id" id="user_id" class="form-control">
                                 @foreach ($coaches as $coach)
@@ -30,6 +17,22 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="class_id">Class</label>
+                            <select id="class_id" name="class_id" class="form-control">
+                                <option value="">No Class</option> <!-- Opsi No Class -->
+                                @foreach ($classes->unique('id') as $class)
+                                    <option value="{{ $class->id }}">
+                                        {{ $class->name }} - {{ \Carbon\Carbon::parse($class->date)->format('d M Y') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('class_id')
+                                <div class="text-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+
 
                         <div class="form-group">
                             <label for="attendance_date">Attendance Date</label>
@@ -63,13 +66,13 @@
                         </div>
 
                         @if (isset($attendance))
-                        <div class="form-group">
-                            <label for="unique_code">Unique Code</label>
-                            <input type="text" name="unique_code" id="unique_code" class="form-control"
-                                value="{{ $attendance->unique_code }}" readonly>
-                        </div>
+                            <div class="form-group">
+                                <label for="unique_code">Unique Code</label>
+                                <input type="text" name="unique_code" id="unique_code" class="form-control"
+                                    value="{{ $attendance->unique_code }}" readonly>
+                            </div>
                         @endif
-                        
+
                         <button type="submit" class="btn btn-primary">Save</button>
                     </form>
                 </div>

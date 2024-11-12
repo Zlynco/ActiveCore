@@ -19,13 +19,13 @@
                                 href="#coach-attendance" role="tab" aria-controls="coach-attendance"
                                 aria-selected="true">Coach Attendance</a>
                         </li>
-                        <li class="nav-item" role="presentation">
-                            <a class="nav-link" id="member-attendance-tab" data-bs-toggle="tab"
-                                href="#member-attendance" role="tab" aria-controls="member-attendance"
-                                aria-selected="false">Member Attendance</a>
-                        </li>
+                        <!--<li class="nav-item" role="presentation">-->
+                        <!--    <a class="nav-link" id="member-attendance-tab" data-bs-toggle="tab"-->
+                        <!--        href="#member-attendance" role="tab" aria-controls="member-attendance"-->
+                        <!--        aria-selected="false">Member Attendance</a>
+                        </li>-->
                         <form method="GET" action="{{ route('admin.attendance') }}">
-                            <div class="mb-4">
+                            <div class="mb-4 ml-3">
                                 <x-text-input id="search" name="search" type="text" placeholder="Search..."
                                     :value="request('search')" class="form-control" />
                                 <x-input-error :messages="$errors->get('search')" class="mt-2" />

@@ -20,8 +20,16 @@ class AdminDashboardController extends Controller
         // Mengambil data dari database
     // Mengambil data dari database
     $totalUsers = User::count();
-    $totalClasses = Classes::count(); // Pastikan nama model sesuai
-    $totalBookings = Booking::count() + CoachBooking::count();
+    $totalClasses = Classes::whereMonth('date', now()->month)
+    ->whereYear('date', now()->year)
+    ->count();
+    $totalBookings = Booking::whereMonth('created_at', now()->month)
+    ->whereYear('created_at', now()->year)
+    ->count() +
+    CoachBooking::whereMonth('created_at', now()->month)
+    ->whereYear('created_at', now()->year)
+    ->count();
+
     $totalAttendances = Attendance::count() + MemberAttendance::count();
 
     // Ambil data booking bulan ini

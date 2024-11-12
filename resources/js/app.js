@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: async function(fetchInfo, successCallback, failureCallback) {
+            events: async function (fetchInfo, successCallback, failureCallback) {
                 try {
                     // Ambil event kelas
                     const classResponse = await axios.get('/api/coach/classes');
@@ -51,8 +51,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }));
 
+                    const attendanceResponse = await axios.get('/api/coach/coach-attendance');
+console.log('Attendance Data:', attendanceResponse.data); // Log data untuk debugging
+const attendanceEvents = attendanceResponse.data.map(attendance => ({
+    title: attendance.title,
+    start: attendance.start,
+    end: attendance.end,
+    color: attendance.color,
+    extendedProps: {
+        status: attendance.extendedProps.status,
+        reason: attendance.extendedProps.reason,
+    }
+}));
+
+
                     // Gabungkan semua events
-                    const allEvents = [...classEvents, ...bookingEvents];
+                    const allEvents = [...classEvents, ...bookingEvents, ...attendanceEvents];
 
                     successCallback(allEvents);
                 } catch (error) {
@@ -60,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     failureCallback(error);
                 }
             },
-            eventClick: function(info) {
+            eventClick: function (info) {
                 $('#classDetailModal').modal('show');
                 var modalContent = $('#classDetailModal .modal-content');
                 modalContent.html(`
@@ -77,6 +91,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${info.event.extendedProps.registered_count ? `<p><strong>Registrant:</strong> ${info.event.extendedProps.registered_count}</p>` : ''}
                         ${info.event.extendedProps.member ? `<p><strong>Member:</strong> ${info.event.extendedProps.member}</p>` : ''}
                         ${info.event.extendedProps.session_count ? `<p><strong>Session Count:</strong> ${info.event.extendedProps.session_count}</p>` : ''}
+                        ${info.event.extendedProps.status ? `<p><strong>Status:</strong> ${info.event.extendedProps.status}</p>` : ''}
+                        ${info.event.extendedProps.reason ? `<p><strong>Reason:</strong> ${info.event.extendedProps.reason}</p>` : ''}
                     </div>
                 `);
             }
@@ -85,4 +101,3 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar.render();
     }
 });
-

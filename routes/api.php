@@ -41,8 +41,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::get('/tes', function () {
     dd('test api kocak');
 });
-Route::get('/classes', [ApiController::class, 'apikelas']);
 //no need sanctum
+Route::get('/classes', [ApiController::class, 'apikelas']);
 Route::get('/getpopularclasses', [ApiController::class, 'getPopularClasses']);
 Route::get('/member', [ApiController::class, 'apiMember']);
 Route::get('/coach', [ApiController::class, 'apiCoach']);
