@@ -93,6 +93,9 @@ Route::middleware(['auth', 'admin', 'verified'])->group(function () {
         Route::put('coach-bookings/{id}', [AdminController::class, 'updateCoachBooking'])->name('bookings.updateCoach');
         Route::delete('coach-bookings/{id}', [AdminController::class, 'deleteCoachBooking'])->name('bookings.destroyCoach');
 
+        // Rute untuk mengambil waktu yang tersedia (AJAX)
+        Route::get('/coach-bookings/available-times', [AdminController::class, 'getAvailableTimes'])->name('coach.bookings.availableTimes');
+
         //Rute Manage Attendance coach
         Route::get('/attendance', [AdminController::class, 'manageAttendance'])->name('attendance');
         Route::get('attendances/create', [AdminController::class, 'createAttendanceCoaches'])->name('attendances.create');
@@ -136,7 +139,7 @@ Route::middleware(['auth', 'admin', 'verified'])->group(function () {
         Route::get('/api/available-dates', [AdminController::class, 'getAvailableDates']);
         Route::get('/api/coach/{coach}/availability', [AdminController::class, 'getAvailabilityByCoach']);
         Route::get('/api/popular-classes', [AdminController::class, 'getPopularClasses']);
-        Route::get('/admin/bookings/available-times', [AdminController::class, 'getAvailableTimes'])->name('admin.bookings.available-times');
+        Route::put('/admin/bookings/available-times', [AdminController::class, 'availableTimes']);
         Route::get('/coach/classes/{coachId}', [AdminController::class, 'getClassesByCoach']);
     });
 });
@@ -208,7 +211,7 @@ Route::get('/email/verify', function () {
 Route::get('/email/verify/{id}/{hash}', [VerifyEmailController::class, '__invoke'])
     ->middleware(['auth', 'signed'])->name('verification.verify');
 
-    Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
     ->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 

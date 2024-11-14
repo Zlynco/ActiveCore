@@ -12,8 +12,8 @@
                         @csrf
                         <div class="form-group">
                             <label for="coach_id">Coach</label>
-                            <select name="coach_id" id="coach_id" class="form-control" required aria-placeholder="Select Coach">
-
+                            <select name="coach_id" id="coach_id" class="form-control" required>
+                                <option value="">Select Coach</option>
                                 @foreach($coaches as $coach)
                                     <option value="{{ $coach->id }}">{{ $coach->name }}</option>
                                 @endforeach
@@ -27,7 +27,9 @@
 
                         <div class="form-group">
                             <label for="start_booking_time">Start Booking Time</label>
-                            <input type="time" name="start_booking_time" id="start_booking_time" class="form-control" required>
+                            <select name="start_booking_time" id="start_booking_time" class="form-control" required>
+                                <option value="">Select Time</option>
+                            </select>
                         </div>
 
                         <div class="form-group">
@@ -43,10 +45,20 @@
     </div>
 
     <script>
-        // Fungsi untuk memvalidasi waktu booking
+        // Validasi waktu booking
         function validateBookingTime() {
             const startTime = document.getElementById('start_booking_time').value;
             const endTime = document.getElementById('end_booking_time').value;
+
+            if (!startTime) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Please select a start time.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                return false;
+            }
 
             if (startTime >= endTime) {
                 Swal.fire({
@@ -55,32 +67,72 @@
                     icon: 'error',
                     confirmButtonText: 'OK'
                 });
-                return false; // Mencegah pengiriman formulir
+                return false;
             }
-            return true; // Mengizinkan pengiriman formulir
+
+            return true;
         }
 
-        // Menangani perubahan waktu start_booking_time
-        document.getElementById('start_booking_time').addEventListener('input', function() {
-            var startTime = this.value;
-            var endTime = calculateEndTime(startTime); // Hitung end time (1 jam setelah start time)
-            document.getElementById('end_booking_time').value = endTime; // Update end time
+        // Fetch available times dynamically
+        document.getElementById('coach_id').addEventListener('change', fetchAvailableTimes);
+        document.getElementById('booking_date').addEventListener('change', fetchAvailableTimes);
+
+        function fetchAvailableTimes() {
+            const coachId = document.getElementById('coach_id').value;
+            const bookingDate = document.getElementById('booking_date').value;
+
+            if (coachId && bookingDate) {
+                fetch(`/api/gettime?coach_id=${coachId}&booking_date=${bookingDate}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const startTimeSelect = document.getElementById('start_booking_time');
+                        startTimeSelect.innerHTML = '<option value="">Select Time</option>'; // Reset options
+
+                        if (data.length === 0) {
+                            Swal.fire({
+                                title: 'No Available Times',
+                                text: 'The selected coach has no available times for this date.',
+                                icon: 'info',
+                                confirmButtonText: 'OK'
+                            });
+                            return;
+                        }
+
+                        data.forEach(time => {
+                            const option = document.createElement('option');
+                            option.value = time;
+                            option.textContent = time;
+                            startTimeSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching available times:', error);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Could not fetch available times. Please try again later.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    });
+            }
+        }
+
+        // Update end time when start time changes
+        document.getElementById('start_booking_time').addEventListener('change', function () {
+            const startTime = this.value;
+            if (startTime) {
+                const endTime = calculateEndTime(startTime);
+                document.getElementById('end_booking_time').value = endTime;
+            } else {
+                document.getElementById('end_booking_time').value = '';
+            }
         });
 
-        // Fungsi untuk menghitung waktu end time (1 jam setelah start time)
+        // Calculate end time (1 hour after start time)
         function calculateEndTime(startTime) {
-            const start = startTime.split(':');
-            let hour = parseInt(start[0]);
-            const minute = parseInt(start[1]);
-
-            // Tambahkan 1 jam ke start time
-            hour += 1;
-
-            if (hour === 24) {
-                hour = 0; // Jika jam mencapai 24, reset ke jam 0 (midnight)
-            }
-
-            return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            const [hour, minute] = startTime.split(':').map(Number);
+            const endHour = (hour + 1) % 24; // Add 1 hour, wrap around if >= 24
+            return `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
         }
     </script>
 

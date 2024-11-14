@@ -1004,45 +1004,6 @@ class AdminController extends Controller
 
         return response()->json(['availableDates' => $availableDates]);
     }
-    public function getAvailableTimes(Request $request)
-    {
-        // Validasi request
-        $request->validate([
-            'coach_id' => 'required|exists:coaches,id',
-            'booking_date' => 'required|date',
-        ]);
-
-        // Ambil ID coach dan tanggal booking
-        $coachId = $request->coach_id;
-        $bookingDate = $request->booking_date;
-
-        // Ambil semua booking untuk coach pada tanggal tersebut
-        $bookings = Booking::where('coach_id', $coachId)
-            ->whereDate('booking_date', $bookingDate)
-            ->get();
-
-        // Tentukan waktu yang sudah terambil oleh booking
-        $bookedTimes = [];
-        foreach ($bookings as $booking) {
-            $bookedTimes[] = $booking->start_booking_time;
-        }
-
-        // Tentukan waktu yang tersedia
-        $allTimes = [];
-        for ($hour = 6; $hour < 22; $hour++) {
-            for ($minute = 0; $minute < 60; $minute += 30) {
-                $time = sprintf('%02d:%02d', $hour, $minute);
-                if (!in_array($time, $bookedTimes)) {
-                    $allTimes[] = $time;
-                }
-            }
-        }
-        Log::channel('booking')->info('Available times for coach ' . $coachId . ' on ' . $bookingDate, ['available_times' => $allTimes]);
-        // Kembalikan data dalam format JSON
-        return response()->json([
-            'available_times' => $allTimes,
-        ]);
-    }
 
 
     public function createCoachBooking()
@@ -1183,8 +1144,6 @@ class AdminController extends Controller
 
         return redirect()->route('admin.booking')->with('success', 'Coach booked successfully!');
     }
-
-
 
     public function editCoachBooking($id)
     {

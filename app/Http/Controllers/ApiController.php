@@ -641,4 +641,80 @@ class ApiController extends Controller
 
         return response()->json($popularClasses);
     }
+    public function getAvailableTimes(Request $request)
+    {
+        // Validasi input
+        $request->validate([
+            'coach_id' => 'required|exists:users,id', // Pastikan coach_id ada di tabel users
+            'booking_date' => 'required|date', // Pastikan booking_date adalah tanggal yang valid
+        ]);
+
+        $coachId = $request->input('coach_id');
+        $bookingDate = Carbon::parse($request->input('booking_date'));
+
+        // 1. Periksa apakah coach memiliki status 'Excused' pada tanggal booking
+        $excusedAttendance = Attendance::where('user_id', $coachId)
+            ->whereDate('attendance_date', $bookingDate->format('Y-m-d'))
+            ->where('status', 'Excused')
+            ->exists();
+
+        if ($excusedAttendance) {
+            // Jika coach berstatus 'Excused', tidak ada jam yang tersedia
+            return response()->json([]);
+        }
+        
+        // Ambil jam yang sudah dibooking pada tanggal tersebut
+        $bookedTimes = CoachBooking::where('coach_id', $coachId)
+            ->whereDate('booking_date', $bookingDate)
+            ->get(['start_booking_time', 'end_booking_time']);
+
+        // Ambil jam yang sudah dikeluarkan dari kelas
+        $classTimes = Classes::where('coach_id', $coachId)
+            ->where('day_of_week', $bookingDate->format('l'))
+            ->get(['start_time', 'end_time']);
+
+        // Logika untuk menentukan jam yang tidak tersedia
+        $unavailableTimes = [];
+        foreach ($bookedTimes as $booking) {
+            $unavailableTimes[] = [
+                'start' => $booking->start_booking_time,
+                'end' => $booking->end_booking_time,
+            ];
+        }
+        foreach ($classTimes as $class) {
+            $unavailableTimes[] = [
+                'start' => $class->start_time,
+                'end' => $class->end_time,
+            ];
+        }
+
+        // Misalkan kita tentukan jam kerja dari 08:00 hingga 20:00
+        $availableTimes = [];
+        $startHour = 8; // 08:00
+        $endHour = 20; // 20:00
+
+        // Menentukan waktu yang tersedia
+        for ($hour = $startHour; $hour < $endHour; $hour++) {
+            for ($minute = 0; $minute < 60; $minute += 30) { // Setiap 30 menit
+                $time = sprintf('%02d:%02d:00', $hour, $minute);
+                $isUnavailable = false;
+
+                // Cek apakah waktu saat ini tidak tersedia
+                foreach ($unavailableTimes as $unavailable) {
+                    if ($time >= $unavailable['start'] && $time <= $unavailable['end']) {
+                        $isUnavailable = true;
+                        break;
+                    }
+                }
+
+                // Jika waktu tersedia, tambahkan ke daftar
+                if (!$isUnavailable) {
+                    $availableTimes[] = $time;
+                }
+            }
+        }
+
+        // Kembalikan waktu yang tersedia dalam format JSON
+        return response()->json($availableTimes);
+    }
 }
