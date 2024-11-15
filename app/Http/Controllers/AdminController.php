@@ -1029,121 +1029,120 @@ class AdminController extends Controller
         return view('admin.bookings.createCoach', compact('coaches'));
     }
     public function storeCoachBooking(Request $request)
-    {
-        Log::channel('booking')->info('Proses penyimpanan booking coach dimulai.');
+{
 
-        // Validasi input dari request
-        $request->validate([
-            'coach_id' => 'required|exists:users,id',
-            'booking_date' => 'required|date',
-            'start_booking_time' => 'required|date_format:H:i',
-            'end_booking_time' => 'required|date_format:H:i',
-        ]);
+    // Log permulaan proses booking
+    Log::channel('booking')->info('Proses penyimpanan booking coach dimulai.');
 
-        $userId = Auth::id();
+    // Validasi input dari request
+    $request->validate([
+        'coach_id' => 'required|exists:users,id',
+        'booking_date' => 'required|date',
+        'start_booking_time' => 'required|date_format:H:i',
+        'end_booking_time' => 'required|date_format:H:i|after:start_booking_time',
+    ]);
 
+    $userId = Auth::id();
+    $coachId = $request->input('coach_id');
+    $bookingDate = Carbon::parse($request->input('booking_date'));
 
-        $coachId = $request->input('coach_id');
-        $bookingDate = Carbon::parse($request->input('booking_date'));
+    // Konversi waktu menjadi format H:i:s
+    $startBookingTime = Carbon::parse($request->input('start_booking_time'))->format('H:i:s');
+    $endBookingTime = Carbon::parse($request->input('end_booking_time'))->format('H:i:s');
 
-        // Mengonversi waktu mulai dan selesai booking menjadi format H:i:s
-        $startBookingTime = Carbon::parse($request->input('start_booking_time'))->format('H:i:s');
-        $endBookingTime = Carbon::parse($request->input('end_booking_time'))->format('H:i:s');
+    // 1. Periksa apakah coach memiliki status 'Excused' pada tanggal booking
+    $excusedAttendance = Attendance::where('user_id', $coachId)
+        ->whereDate('attendance_date', $bookingDate->format('Y-m-d'))
+        ->where('status', 'Excused')
+        ->exists();
 
-        // 1. Periksa apakah coach memiliki status 'Excused' pada tanggal booking
-        $excusedAttendance = Attendance::where('user_id', $coachId)
-            ->whereDate('attendance_date', $bookingDate->format('Y-m-d'))
-            ->where('status', 'Excused')
-            ->exists();
-
-        if ($excusedAttendance) {
-            return redirect()->back()->with('error', 'Coach is excused on the selected date and cannot be booked.')->withInput();
-        }
-
-        // 2. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
-        $hasBooking = CoachBooking::where('coach_id', $coachId)
-            ->whereDate('booking_date', $bookingDate->format('Y-m-d'))
-            ->where(function ($query) use ($startBookingTime, $endBookingTime) {
-                $query->whereBetween('start_booking_time', [$startBookingTime, $endBookingTime])
-                    ->orWhereBetween('end_booking_time', [$startBookingTime, $endBookingTime])
-                    ->orWhere(function ($q2) use ($startBookingTime, $endBookingTime) {
-                        $q2->where('start_booking_time', '<=', $startBookingTime)
-                            ->where('end_booking_time', '>=', $endBookingTime);
-                    });
-            })
-            ->exists();
-
-        if ($hasBooking) {
-            return redirect()->back()->with('error', 'Coach is already booked for the selected date and time.')->withInput();
-        }
-
-        // 3. Ambil nama hari dari tanggal booking yang dipilih
-        $daysOfWeek = [
-            'Sunday' => 'Minggu',
-            'Monday' => 'Senin',
-            'Tuesday' => 'Selasa',
-            'Wednesday' => 'Rabu',
-            'Thursday' => 'Kamis',
-            'Friday' => 'Jumat',
-            'Saturday' => 'Sabtu',
-        ];
-        $dayOfWeekEnglish = $bookingDate->format('l'); // Ambil nama hari dalam bahasa Inggris (contoh: 'Monday')
-        $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish]; // Ubah ke bahasa Indonesia (contoh: 'Senin')
-
-        // 4. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
-        $hasClass = Classes::where('coach_id', $coachId)
-            ->where('day_of_week', $dayOfWeek) // Cocokkan hari
-            ->where(function ($query) use ($startBookingTime, $endBookingTime) {
-                $query->whereBetween('start_time', [$startBookingTime, $endBookingTime])
-                    ->orWhereBetween('end_time', [$startBookingTime, $endBookingTime])
-                    ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
-                        $q->where('start_time', '<=', $startBookingTime)
-                            ->where('end_time', '>=', $endBookingTime);
-                    });
-            })
-            ->exists();
-
-        if ($hasClass) {
-            return redirect()->back()->with('error', 'Coach has a class scheduled during the selected time.')->withInput();
-        }
-
-        // Buat booking baru jika semua validasi lolos
-        $nextCoachBookingId = CoachBooking::max('id') + 1;
-        $bookingCode = $this->generateBookingCode('CCH', $nextCoachBookingId);
-
-        $existingBooking = CoachBooking::where('user_id', $userId)
-            ->where('coach_id', $coachId)
-            ->latest()
-            ->first();
-
-        $newSessionCount = $existingBooking ? $existingBooking->session_count + 1 : 1;
-        $paymentRequired = $newSessionCount % 4 == 0;
-
-        // Buat booking baru
-        CoachBooking::create([
-            'coach_id' => $coachId,
-            'user_id' => $userId,
-            'session_count' => $newSessionCount,
-            'booking_date' => $bookingDate->format('Y-m-d'),
-            'start_booking_time' => $startBookingTime,
-            'end_booking_time' => $endBookingTime,
-            'booking_code' => $bookingCode,
-            'payment_required' => $paymentRequired,
-        ]);
-
-        Log::channel('booking')->info('Booking coach berhasil dibuat.', [
-            'user_id' => $userId,
-            'coach_id' => $coachId,
-            'session_count' => $newSessionCount,
-            'payment_required' => $paymentRequired,
-            'booking_date' => $bookingDate->format('Y-m-d'),
-            'start_booking_time' => $startBookingTime,
-            'end_booking_time' => $endBookingTime,
-            'booking_code' => $bookingCode,
-        ]);
-
-        return redirect()->route('admin.booking')->with('success', 'Coach booked successfully!');
+    if ($excusedAttendance) {
+        return redirect()->back()->with('error', 'Coach is excused on the selected date and cannot be booked.')->withInput();
     }
+
+    // 2. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
+    $hasBooking = CoachBooking::where('coach_id', $coachId)
+        ->whereDate('booking_date', $bookingDate->format('Y-m-d'))
+        ->where(function ($query) use ($startBookingTime, $endBookingTime) {
+            $query->whereBetween('start_booking_time', [$startBookingTime, $endBookingTime])
+                ->orWhereBetween('end_booking_time', [$startBookingTime, $endBookingTime])
+                ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
+                    $q->where('start_booking_time', '<=', $startBookingTime)
+                        ->where('end_booking_time', '>=', $endBookingTime);
+                });
+        })
+        ->exists();
+
+    if ($hasBooking) {
+        return redirect()->back()->with('error', 'Coach is Unavailable for the selected date and time.')->withInput();
+    }
+
+    // 3. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
+    $daysOfWeek = [
+        'Sunday' => 'Minggu',
+        'Monday' => 'Senin',
+        'Tuesday' => 'Selasa',
+        'Wednesday' => 'Rabu',
+        'Thursday' => 'Kamis',
+        'Friday' => 'Jumat',
+        'Saturday' => 'Sabtu',
+    ];
+    $dayOfWeekEnglish = $bookingDate->format('l');
+    $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish];
+
+    $hasClass = Classes::where('coach_id', $coachId)
+        ->where('day_of_week', $dayOfWeek)
+        ->where(function ($query) use ($startBookingTime, $endBookingTime) {
+            $query->whereBetween('start_time', [$startBookingTime, $endBookingTime])
+                ->orWhereBetween('end_time', [$startBookingTime, $endBookingTime])
+                ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
+                    $q->where('start_time', '<=', $startBookingTime)
+                        ->where('end_time', '>=', $endBookingTime);
+                });
+        })
+        ->exists();
+
+    if ($hasClass) {
+        return redirect()->back()->with('error', 'Coach has a class scheduled during the selected time.')->withInput();
+    }
+
+    // 4. Buat booking baru jika semua validasi lolos
+    $nextCoachBookingId = CoachBooking::max('id') + 1;
+    $bookingCode = $this->generateBookingCode('CCH', $nextCoachBookingId);
+
+    $existingBooking = CoachBooking::where('user_id', $userId)
+        ->where('coach_id', $coachId)
+        ->latest()
+        ->first();
+
+    $newSessionCount = $existingBooking ? $existingBooking->session_count + 1 : 1;
+    $paymentRequired = $newSessionCount % 4 == 0;
+
+    CoachBooking::create([
+        'coach_id' => $coachId,
+        'user_id' => $userId,
+        'session_count' => $newSessionCount,
+        'booking_date' => $bookingDate->format('Y-m-d'),
+        'start_booking_time' => $startBookingTime,
+        'end_booking_time' => $endBookingTime,
+        'booking_code' => $bookingCode,
+        'payment_required' => $paymentRequired,
+    ]);
+
+    // Log data berhasil disimpan
+    Log::channel('booking')->info('Booking coach berhasil dibuat.', [
+        'user_id' => $userId,
+        'coach_id' => $coachId,
+        'session_count' => $newSessionCount,
+        'payment_required' => $paymentRequired,
+        'booking_date' => $bookingDate->format('Y-m-d'),
+        'start_booking_time' => $startBookingTime,
+        'end_booking_time' => $endBookingTime,
+        'booking_code' => $bookingCode,
+    ]);
+
+    return redirect()->route('admin.booking')->with('success', 'Coach booked successfully!');
+}
 
     public function editCoachBooking($id)
     {

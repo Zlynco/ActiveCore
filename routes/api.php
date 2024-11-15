@@ -42,6 +42,7 @@ Route::get('/tes', function () {
     dd('test api kocak');
 });
 //no need sanctum
+Route::get('/popularcategory', [ApiController::class, 'getPopularCategory']);
 Route::get('/gettime', [ApiController::class, 'getAvailableTimes']);
 Route::get('/classes', [ApiController::class, 'apikelas']);
 Route::get('/getpopularclasses', [ApiController::class, 'getPopularClasses']);

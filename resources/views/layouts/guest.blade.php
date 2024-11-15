@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('image/ActiveCore_icon.png') }}">
 
     <link href="{{ asset('startbootstrap-sb-admin-2-master/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet"
         type="text/css">

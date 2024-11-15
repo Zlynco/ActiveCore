@@ -27,10 +27,9 @@
 
                         <div class="form-group">
                             <label for="start_booking_time">Start Booking Time</label>
-                            <select name="start_booking_time" id="start_booking_time" class="form-control" required>
-                                <option value="">Select Time</option>
-                            </select>
+                            <input type="time" name="start_booking_time" id="start_booking_time" class="form-control" required>
                         </div>
+
 
                         <div class="form-group">
                             <label for="end_booking_time">End Booking Time</label>
@@ -77,56 +76,56 @@
         document.getElementById('coach_id').addEventListener('change', fetchAvailableTimes);
         document.getElementById('booking_date').addEventListener('change', fetchAvailableTimes);
 
-        function fetchAvailableTimes() {
-            const coachId = document.getElementById('coach_id').value;
-            const bookingDate = document.getElementById('booking_date').value;
+        // Fetch available times dynamically and set min/max for time input
+function fetchAvailableTimes() {
+    const coachId = document.getElementById('coach_id').value;
+    const bookingDate = document.getElementById('booking_date').value;
 
-            if (coachId && bookingDate) {
-                fetch(`/api/gettime?coach_id=${coachId}&booking_date=${bookingDate}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const startTimeSelect = document.getElementById('start_booking_time');
-                        startTimeSelect.innerHTML = '<option value="">Select Time</option>'; // Reset options
-
-                        if (data.length === 0) {
-                            Swal.fire({
-                                title: 'No Available Times',
-                                text: 'The selected coach has no available times for this date.',
-                                icon: 'info',
-                                confirmButtonText: 'OK'
-                            });
-                            return;
-                        }
-
-                        data.forEach(time => {
-                            const option = document.createElement('option');
-                            option.value = time;
-                            option.textContent = time;
-                            startTimeSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error fetching available times:', error);
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'Could not fetch available times. Please try again later.',
-                            icon: 'error',
-                            confirmButtonText: 'OK'
-                        });
+    if (coachId && bookingDate) {
+        fetch(`/api/gettime?coach_id=${coachId}&booking_date=${bookingDate}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    Swal.fire({
+                        title: 'No Available Times',
+                        text: 'The selected coach has no available times for this date.',
+                        icon: 'info',
+                        confirmButtonText: 'OK'
                     });
-            }
-        }
+                    document.getElementById('start_booking_time').disabled = true;
+                    return;
+                }
 
-        // Update end time when start time changes
-        document.getElementById('start_booking_time').addEventListener('change', function () {
-            const startTime = this.value;
-            if (startTime) {
-                const endTime = calculateEndTime(startTime);
-                document.getElementById('end_booking_time').value = endTime;
-            } else {
-                document.getElementById('end_booking_time').value = '';
-            }
-        });
+                // Enable input and set min/max times
+                const startTimeInput = document.getElementById('start_booking_time');
+                startTimeInput.disabled = false;
+                startTimeInput.min = data[0]; // Set earliest available time
+                startTimeInput.max = data[data.length - 1]; // Set latest available time
+                startTimeInput.value = ''; // Reset value
+            })
+            .catch(error => {
+                console.error('Error fetching available times:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Could not fetch available times. Please try again later.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+    }
+}
+
+// Update end time dynamically based on start time
+document.getElementById('start_booking_time').addEventListener('input', function () {
+    const startTime = this.value;
+    if (startTime) {
+        const endTime = calculateEndTime(startTime);
+        document.getElementById('end_booking_time').value = endTime;
+    } else {
+        document.getElementById('end_booking_time').value = '';
+    }
+});
+
 
         // Calculate end time (1 hour after start time)
         function calculateEndTime(startTime) {
@@ -163,3 +162,60 @@
         </script>
     @endif
 </x-appadmin-layout>
+
+{{-- <div class="form-group">
+    <label for="start_booking_time">Start Booking Time</label>
+    <select name="start_booking_time" id="start_booking_time" class="form-control" required>
+        <option value="">Select Time</option>
+    </select>
+</div> --}}
+{{-- function fetchAvailableTimes() {
+    const coachId = document.getElementById('coach_id').value;
+    const bookingDate = document.getElementById('booking_date').value;
+
+    if (coachId && bookingDate) {
+        fetch(`/api/gettime?coach_id=${coachId}&booking_date=${bookingDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const startTimeSelect = document.getElementById('start_booking_time');
+                startTimeSelect.innerHTML = '<option value="">Select Time</option>'; // Reset options
+
+                if (data.length === 0) {
+                    Swal.fire({
+                        title: 'No Available Times',
+                        text: 'The selected coach has no available times for this date.',
+                        icon: 'info',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+
+                data.forEach(time => {
+                    const option = document.createElement('option');
+                    option.value = time;
+                    option.textContent = time;
+                    startTimeSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching available times:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Could not fetch available times. Please try again later.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+    }
+}
+
+// Update end time when start time changes
+document.getElementById('start_booking_time').addEventListener('change', function () {
+    const startTime = this.value;
+    if (startTime) {
+        const endTime = calculateEndTime(startTime);
+        document.getElementById('end_booking_time').value = endTime;
+    } else {
+        document.getElementById('end_booking_time').value = '';
+    }
+}); --}}

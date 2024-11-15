@@ -255,110 +255,133 @@ class ApiController extends Controller
         return CoachBookingResource::collection($coachbookings);
     }
     public function storeCoachBooking(Request $request)
-    {
-        Log::channel('booking')->info('Proses penyimpanan booking coach dimulai.');
+{
+    // Log permulaan proses booking
+    Log::channel('booking')->info('Proses penyimpanan booking coach dimulai.');
 
-        // Validasi input dari request
-        $request->validate([
-            'coach_id' => 'required|exists:users,id',
-            'booking_date' => 'required|date',
-            'start_booking_time' => 'required|date_format:H:i',
-            'end_booking_time' => 'required|date_format:H:i',
-        ]);
+    // Validasi input dari request
+    $validatedData = $request->validate([
+        'coach_id' => 'required|exists:users,id',
+        'booking_date' => 'required|date',
+        'start_booking_time' => 'required|date_format:H:i',
+        'end_booking_time' => 'required|date_format:H:i|after:start_booking_time',
+    ]);
 
-        $userId = Auth::id();
-        $coachId = $request->input('coach_id');
-        $bookingDate = Carbon::parse($request->input('booking_date'));
+    $userId = Auth::id();
+    $coachId = $validatedData['coach_id'];
+    $bookingDate = Carbon::parse($validatedData['booking_date']);
 
-        // Mengonversi waktu mulai dan selesai booking menjadi format H:i:s
-        $startBookingTime = Carbon::parse($request->input('start_booking_time'))->format('H:i:s');
-        $endBookingTime = Carbon::parse($request->input('end_booking_time'))->format('H:i:s');
+    // Konversi waktu menjadi format H:i:s
+    $startBookingTime = Carbon::parse($validatedData['start_booking_time'])->format('H:i:s');
+    $endBookingTime = Carbon::parse($validatedData['end_booking_time'])->format('H:i:s');
 
-        // 1. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
-        $hasBooking = CoachBooking::where('coach_id', $coachId)
-            ->whereDate('booking_date', $bookingDate->format('Y-m-d'))
-            ->where(function ($query) use ($startBookingTime, $endBookingTime) {
-                $query->whereBetween('start_booking_time', [$startBookingTime, $endBookingTime])
-                    ->orWhereBetween('end_booking_time', [$startBookingTime, $endBookingTime])
-                    ->orWhere(function ($q2) use ($startBookingTime, $endBookingTime) {
-                        $q2->where('start_booking_time', '<=', $startBookingTime)
-                            ->where('end_booking_time', '>=', $endBookingTime);
-                    });
-            })
-            ->exists();
+    // 1. Periksa apakah coach memiliki status 'Excused' pada tanggal booking
+    $excusedAttendance = Attendance::where('user_id', $coachId)
+        ->whereDate('attendance_date', $bookingDate->format('Y-m-d'))
+        ->where('status', 'Excused')
+        ->exists();
 
-        if ($hasBooking) {
-            return response()->json(['error' => 'Coach is already booked for the selected date and time.'], 400);
-        }
-
-        // 2. Ambil nama hari dari tanggal booking yang dipilih
-        $daysOfWeek = [
-            'Sunday' => 'Minggu',
-            'Monday' => 'Senin',
-            'Tuesday' => 'Selasa',
-            'Wednesday' => 'Rabu',
-            'Thursday' => 'Kamis',
-            'Friday' => 'Jumat',
-            'Saturday' => 'Sabtu',
-        ];
-        $dayOfWeekEnglish = $bookingDate->format('l'); // Ambil nama hari dalam bahasa Inggris
-        $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish]; // Ubah ke bahasa Indonesia
-
-        // 3. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
-        $hasClass = Classes::where('coach_id', $coachId)
-            ->where('day_of_week', $dayOfWeek) // Cocokkan hari
-            ->where(function ($query) use ($startBookingTime, $endBookingTime) {
-                $query->whereBetween('start_time', [$startBookingTime, $endBookingTime])
-                    ->orWhereBetween('end_time', [$startBookingTime, $endBookingTime])
-                    ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
-                        $q->where('start_time', '<=', $startBookingTime)
-                            ->where('end_time', '>=', $endBookingTime);
-                    });
-            })
-            ->exists();
-
-        if ($hasClass) {
-            return response()->json(['error' => 'Coach has a class scheduled during the selected time.'], 400);
-        }
-
-        // Buat booking baru jika semua validasi lolos
-        $nextCoachBookingId = CoachBooking::max('id') + 1;
-        $bookingCode = $this->generateBookingCode('CCH', $nextCoachBookingId);
-
-        $existingBooking = CoachBooking::where('user_id', $userId)
-            ->where('coach_id', $coachId)
-            ->latest()
-            ->first();
-
-        $newSessionCount = $existingBooking ? $existingBooking->session_count + 1 : 1;
-        $paymentRequired = $newSessionCount % 4 == 0;
-
-        // Buat booking baru
-        $booking = CoachBooking::create([
-            'coach_id' => $coachId,
-            'user_id' => $userId,
-            'session_count' => $newSessionCount,
-            'booking_date' => $bookingDate->format('Y-m-d'),
-            'start_booking_time' => $startBookingTime,
-            'end_booking_time' => $endBookingTime,
-            'booking_code' => $bookingCode,
-            'payment_required' => $paymentRequired,
-        ]);
-        $coachName = User::find($coachId)->name;
-
-        Log::channel('booking')->info('Booking coach berhasil dibuat.', [
-            'user_id' => $userId,
-            'coach_id' => $coachId,
-            'session_count' => $newSessionCount,
-            'payment_required' => $paymentRequired,
-            'booking_date' => $bookingDate->format('Y-m-d'),
-            'start_booking_time' => $startBookingTime,
-            'end_booking_time' => $endBookingTime,
-            'booking_code' => $bookingCode,
-        ]);
-
-        return response()->json(['success' => 'Coach booked successfully!', 'booking' => $booking, 'coach_name' => $coachName], 201);
+    if ($excusedAttendance) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Coach is excused on the selected date and cannot be booked.',
+        ], 400);
     }
+
+    // 2. Periksa apakah coach sudah memiliki booking pada tanggal dan waktu yang sama
+    $hasBooking = CoachBooking::where('coach_id', $coachId)
+        ->whereDate('booking_date', $bookingDate->format('Y-m-d'))
+        ->where(function ($query) use ($startBookingTime, $endBookingTime) {
+            $query->whereBetween('start_booking_time', [$startBookingTime, $endBookingTime])
+                ->orWhereBetween('end_booking_time', [$startBookingTime, $endBookingTime])
+                ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
+                    $q->where('start_booking_time', '<=', $startBookingTime)
+                        ->where('end_booking_time', '>=', $endBookingTime);
+                });
+        })
+        ->exists();
+
+    if ($hasBooking) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Coach is unavailable for the selected date and time.',
+        ], 400);
+    }
+
+    // 3. Periksa apakah coach sudah memiliki kelas pada hari dan waktu yang sama
+    $daysOfWeek = [
+        'Sunday' => 'Minggu',
+        'Monday' => 'Senin',
+        'Tuesday' => 'Selasa',
+        'Wednesday' => 'Rabu',
+        'Thursday' => 'Kamis',
+        'Friday' => 'Jumat',
+        'Saturday' => 'Sabtu',
+    ];
+    $dayOfWeekEnglish = $bookingDate->format('l');
+    $dayOfWeek = $daysOfWeek[$dayOfWeekEnglish];
+
+    $hasClass = Classes::where('coach_id', $coachId)
+        ->where('day_of_week', $dayOfWeek)
+        ->where(function ($query) use ($startBookingTime, $endBookingTime) {
+            $query->whereBetween('start_time', [$startBookingTime, $endBookingTime])
+                ->orWhereBetween('end_time', [$startBookingTime, $endBookingTime])
+                ->orWhere(function ($q) use ($startBookingTime, $endBookingTime) {
+                    $q->where('start_time', '<=', $startBookingTime)
+                        ->where('end_time', '>=', $endBookingTime);
+                });
+        })
+        ->exists();
+
+    if ($hasClass) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Coach has a class scheduled during the selected time.',
+        ], 400);
+    }
+
+    // 4. Buat booking baru jika semua validasi lolos
+    $nextCoachBookingId = CoachBooking::max('id') + 1;
+    $bookingCode = $this->generateBookingCode('CCH', $nextCoachBookingId);
+
+    $existingBooking = CoachBooking::where('user_id', $userId)
+        ->where('coach_id', $coachId)
+        ->latest()
+        ->first();
+
+    $newSessionCount = $existingBooking ? $existingBooking->session_count + 1 : 1;
+    $paymentRequired = $newSessionCount % 4 == 0;
+
+    $booking = CoachBooking::create([
+        'coach_id' => $coachId,
+        'user_id' => $userId,
+        'session_count' => $newSessionCount,
+        'booking_date' => $bookingDate->format('Y-m-d'),
+        'start_booking_time' => $startBookingTime,
+        'end_booking_time' => $endBookingTime,
+        'booking_code' => $bookingCode,
+        'payment_required' => $paymentRequired,
+    ]);
+
+    // Log data berhasil disimpan
+    Log::channel('booking')->info('Booking coach berhasil dibuat.', [
+        'user_id' => $userId,
+        'coach_id' => $coachId,
+        'session_count' => $newSessionCount,
+        'payment_required' => $paymentRequired,
+        'booking_date' => $bookingDate->format('Y-m-d'),
+        'start_booking_time' => $startBookingTime,
+        'end_booking_time' => $endBookingTime,
+        'booking_code' => $bookingCode,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Coach booked successfully!',
+        'data' => $booking,
+    ]);
+}
+
 
     //ATTENDANCE API
     public function apiAttendance()
@@ -627,7 +650,7 @@ class ApiController extends Controller
 
         return response()->json($formattedBookings);
     }
-    public function getPopularClasses()
+    public function getPopularCategory()
     {
         $currentMonth = Carbon::now()->month;
 
@@ -662,7 +685,7 @@ class ApiController extends Controller
             // Jika coach berstatus 'Excused', tidak ada jam yang tersedia
             return response()->json([]);
         }
-        
+
         // Ambil jam yang sudah dibooking pada tanggal tersebut
         $bookedTimes = CoachBooking::where('coach_id', $coachId)
             ->whereDate('booking_date', $bookingDate)
@@ -696,7 +719,7 @@ class ApiController extends Controller
         // Menentukan waktu yang tersedia
         for ($hour = $startHour; $hour < $endHour; $hour++) {
             for ($minute = 0; $minute < 60; $minute += 30) { // Setiap 30 menit
-                $time = sprintf('%02d:%02d:00', $hour, $minute);
+                $time = sprintf('%02d:%02d', $hour, $minute);
                 $isUnavailable = false;
 
                 // Cek apakah waktu saat ini tidak tersedia
@@ -717,4 +740,5 @@ class ApiController extends Controller
         // Kembalikan waktu yang tersedia dalam format JSON
         return response()->json($availableTimes);
     }
+
 }

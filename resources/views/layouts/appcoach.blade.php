@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('image/ActiveCore_icon.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -15,7 +16,7 @@
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
     <link href="{{ asset('startbootstrap-sb-admin-2-master/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
-    
+
     <!-- Custom styles for this template-->
     <link href="{{ asset('startbootstrap-sb-admin-2-master/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <!-- Scripts -->
@@ -62,7 +63,7 @@
     <!-- Page level custom scripts -->
     <script src="{{ asset('startbootstrap-sb-admin-2-master/js/demo/chart-area-demo.js') }}"></script>
     <script src="{{ asset('startbootstrap-sb-admin-2-master/js/demo/chart-pie-demo.js') }}"></script>
-    
+
 </body>
 
 </html>
