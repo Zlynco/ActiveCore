@@ -27,8 +27,9 @@
 
                         <div class="form-group">
                             <label for="start_booking_time">Start Booking Time</label>
-                            <input type="time" name="start_booking_time" id="start_booking_time" class="form-control" required>
-                        </div>
+                            <select name="start_booking_time" id="start_booking_time" class="form-control" required>
+                                <option value="">Select Time</option>
+                            </select>
 
 
                         <div class="form-group">
@@ -77,7 +78,7 @@
         document.getElementById('booking_date').addEventListener('change', fetchAvailableTimes);
 
         // Fetch available times dynamically and set min/max for time input
-function fetchAvailableTimes() {
+        function fetchAvailableTimes() {
     const coachId = document.getElementById('coach_id').value;
     const bookingDate = document.getElementById('booking_date').value;
 
@@ -85,6 +86,9 @@ function fetchAvailableTimes() {
         fetch(`/api/gettime?coach_id=${coachId}&booking_date=${bookingDate}`)
             .then(response => response.json())
             .then(data => {
+                const startTimeSelect = document.getElementById('start_booking_time');
+                startTimeSelect.innerHTML = '<option value="">Select Time</option>'; // Reset options
+
                 if (data.length === 0) {
                     Swal.fire({
                         title: 'No Available Times',
@@ -92,16 +96,15 @@ function fetchAvailableTimes() {
                         icon: 'info',
                         confirmButtonText: 'OK'
                     });
-                    document.getElementById('start_booking_time').disabled = true;
                     return;
                 }
 
-                // Enable input and set min/max times
-                const startTimeInput = document.getElementById('start_booking_time');
-                startTimeInput.disabled = false;
-                startTimeInput.min = data[0]; // Set earliest available time
-                startTimeInput.max = data[data.length - 1]; // Set latest available time
-                startTimeInput.value = ''; // Reset value
+                data.forEach(time => {
+                    const option = document.createElement('option');
+                    option.value = time;
+                    option.textContent = time;
+                    startTimeSelect.appendChild(option);
+                });
             })
             .catch(error => {
                 console.error('Error fetching available times:', error);
@@ -115,8 +118,8 @@ function fetchAvailableTimes() {
     }
 }
 
-// Update end time dynamically based on start time
-document.getElementById('start_booking_time').addEventListener('input', function () {
+// Update end time when start time changes
+document.getElementById('start_booking_time').addEventListener('change', function () {
     const startTime = this.value;
     if (startTime) {
         const endTime = calculateEndTime(startTime);

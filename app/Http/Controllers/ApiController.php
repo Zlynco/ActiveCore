@@ -711,28 +711,40 @@ class ApiController extends Controller
             ];
         }
 
-        // Misalkan kita tentukan jam kerja dari 08:00 hingga 20:00
         $availableTimes = [];
         $startHour = 8; // 08:00
-        $endHour = 20; // 20:00
+        $endHour = 19; // 19:30
 
-        // Menentukan waktu yang tersedia
         for ($hour = $startHour; $hour < $endHour; $hour++) {
-            for ($minute = 0; $minute < 60; $minute += 30) { // Setiap 30 menit
-                $time = sprintf('%02d:%02d', $hour, $minute);
+            for ($minute = 0; $minute < 60; $minute += 30) {
+                // Awal dan akhir interval saat ini
+                $intervalStart = sprintf('%02d:%02d', $hour, $minute);
+                $intervalEnd = sprintf('%02d:%02d', $hour, $minute + 30);
+
+                // Konversi waktu ke format menit untuk memudahkan perhitungan
+                $intervalStartMinutes = $hour * 60 + $minute;
+                $intervalEndMinutes = $hour * 60 + $minute + 30;
+
                 $isUnavailable = false;
 
-                // Cek apakah waktu saat ini tidak tersedia
+                // Cek overlap dengan waktu yang tidak tersedia
                 foreach ($unavailableTimes as $unavailable) {
-                    if ($time >= $unavailable['start'] && $time <= $unavailable['end']) {
+                    // Konversi waktu yang tidak tersedia ke format menit
+                    $unavailableStartMinutes = (int)substr($unavailable['start'], 0, 2) * 60 + (int)substr($unavailable['start'], 3, 2);
+                    $unavailableEndMinutes = (int)substr($unavailable['end'], 0, 2) * 60 + (int)substr($unavailable['end'], 3, 2);
+
+                    // Periksa apakah interval ini overlap dengan interval yang tidak tersedia
+                    if (
+                        ($intervalStartMinutes < $unavailableEndMinutes && $intervalEndMinutes > $unavailableStartMinutes)
+                    ) {
                         $isUnavailable = true;
                         break;
                     }
                 }
 
-                // Jika waktu tersedia, tambahkan ke daftar
+                // Jika tidak ada overlap, tambahkan ke daftar waktu yang tersedia
                 if (!$isUnavailable) {
-                    $availableTimes[] = $time;
+                    $availableTimes[] = $intervalStart;
                 }
             }
         }

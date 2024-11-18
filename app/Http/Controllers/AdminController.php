@@ -1562,8 +1562,8 @@ class AdminController extends Controller
             'equipment' => 'required|string|max:255',
         ]);
 
-        Room::create($request->all());
-
+        $rooms = Room::create($request->all());
+        Log::channel('rooms')->info('Category added: ', ['id' => $rooms->id, 'name' => $rooms->name]);
         return redirect()->route('admin.rooms')->with('success', 'Room created successfully.');
     }
     public function editRoom($id)
@@ -1595,86 +1595,177 @@ class AdminController extends Controller
         return redirect()->route('admin.rooms')->with('success', 'Room deleted successfully.');
     }
     public function showLogs()
-    {
-        // Baca file log
-        $logFilePath = storage_path('logs/classes.log');
-        $logs = [];
+{
+    // Path file log
+    $logFilePath = storage_path('logs/classes.log');
 
-        if (File::exists($logFilePath)) {
-            $logs = File::get($logFilePath);
+    $logs = [];
+
+    if (File::exists($logFilePath)) {
+        $logContent = File::get($logFilePath);
+        $logLines = explode("\n", trim($logContent));
+
+        foreach ($logLines as $line) {
+            // Parsing log dengan regex
+            if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                $logs[] = [
+                    'timestamp' => $matches[1], // Waktu log
+                    'environment' => $matches[2], // Lingkungan (local/production)
+                    'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                    'message' => $matches[4], // Pesan log
+                    'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                ];
+            }
         }
 
-        // Kirim log ke view
-        return view('admin.classes.logs', compact('logs'));
+        // Balikkan urutan log
+        $logs = array_reverse($logs);
     }
+
+    // Kirim array log ke view
+    return view('admin.classes.logs', ['logs' => $logs]);
+}
+
     public function showUserLogs()
     {
         // Path ke file log user
         $logFilePath = storage_path('logs/user.log');
+        $logs = [];
 
-        // Mengecek apakah file log ada
         if (File::exists($logFilePath)) {
-            // Membaca isi file log
-            $logs = File::get($logFilePath);
-        } else {
-            $logs = 'Log file not found or is empty.';
-        }
+            $logContent = File::get($logFilePath);
+            $logLines = explode("\n", trim($logContent));
 
-        // Mengirim log ke view
+            foreach ($logLines as $line) {
+                // Parsing log dengan regex
+                if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                    $logs[] = [
+                        'timestamp' => $matches[1], // Waktu log
+                        'environment' => $matches[2], // Lingkungan (local/production)
+                        'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                        'message' => $matches[4], // Pesan log
+                        'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                    ];
+                }
+            }
+
+            // Balikkan urutan log
+            $logs = array_reverse($logs);
+        }
         return view('admin.users.logs', compact('logs'));
     }
     public function showBookingLogs()
     {
         // Path ke file log user
         $logFilePath = storage_path('logs/booking.log');
+        $logs = [];
 
-        // Mengecek apakah file log ada
         if (File::exists($logFilePath)) {
-            // Membaca isi file log
-            $logs = File::get($logFilePath);
-        } else {
-            $logs = 'Log file not found or is empty.';
-        }
+            $logContent = File::get($logFilePath);
+            $logLines = explode("\n", trim($logContent));
 
-        // Mengirim log ke view
+            foreach ($logLines as $line) {
+                // Parsing log dengan regex
+                if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                    $logs[] = [
+                        'timestamp' => $matches[1], // Waktu log
+                        'environment' => $matches[2], // Lingkungan (local/production)
+                        'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                        'message' => $matches[4], // Pesan log
+                        'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                    ];
+                }
+            }
+
+            // Balikkan urutan log
+            $logs = array_reverse($logs);
+        }
         return view('admin.bookings.logs', compact('logs'));
     }
     public function showAttendanceLogs()
     {
         $logFilePath = storage_path('logs/attendance.log');
 
-        if (File::exists($logFilePath)) {
-            $logs = File::get($logFilePath);
-        } else {
-            $logs = 'Log file is empty or not found.';
-        }
+        $logs = [];
 
+        if (File::exists($logFilePath)) {
+            $logContent = File::get($logFilePath);
+            $logLines = explode("\n", trim($logContent));
+
+            foreach ($logLines as $line) {
+                // Parsing log dengan regex
+                if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                    $logs[] = [
+                        'timestamp' => $matches[1], // Waktu log
+                        'environment' => $matches[2], // Lingkungan (local/production)
+                        'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                        'message' => $matches[4], // Pesan log
+                        'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                    ];
+                }
+            }
+
+            // Balikkan urutan log
+            $logs = array_reverse($logs);
+        }
         return view('admin.attendances.logs', compact('logs'));
     }
     public function showCategoryLogs()
     {
         $logFilePath = storage_path('logs/category.log');
+        $logs = [];
 
         if (File::exists($logFilePath)) {
-            $logs = File::get($logFilePath);
-        } else {
-            $logs = 'Log file is empty or not found.';
-        }
+            $logContent = File::get($logFilePath);
+            $logLines = explode("\n", trim($logContent));
 
+            foreach ($logLines as $line) {
+                // Parsing log dengan regex
+                if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                    $logs[] = [
+                        'timestamp' => $matches[1], // Waktu log
+                        'environment' => $matches[2], // Lingkungan (local/production)
+                        'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                        'message' => $matches[4], // Pesan log
+                        'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                    ];
+                }
+            }
+
+            // Balikkan urutan log
+            $logs = array_reverse($logs);
+        }
         return view('admin.categories.logs', compact('logs'));
     }
     public function showRoomLogs()
-    {
-        $logFilePath = storage_path('logs/rooms.log');
+{
+    $logFilePath = storage_path('logs/rooms.log');
 
-        if (File::exists($logFilePath)) {
-            $logs = File::get($logFilePath);
-        } else {
-            $logs = 'Log file is empty or not found.';
+    $logs = [];
+
+    if (File::exists($logFilePath)) {
+        $logContent = File::get($logFilePath);
+        $logLines = explode("\n", trim($logContent));
+
+        foreach ($logLines as $line) {
+            // Parsing log dengan regex
+            if (preg_match('/^\[(.+?)\] (\w+)\.(\w+): (.+?) ({.*})?$/', $line, $matches)) {
+                $logs[] = [
+                    'timestamp' => $matches[1], // Waktu log
+                    'environment' => $matches[2], // Lingkungan (local/production)
+                    'level' => $matches[3], // Level log (INFO, ERROR, dll.)
+                    'message' => $matches[4], // Pesan log
+                    'data' => isset($matches[5]) ? json_decode($matches[5], true) : null, // Data log (jika ada)
+                ];
+            }
         }
 
-        return view('admin.room.logs', compact('logs'));
+        // Balikkan urutan log
+        $logs = array_reverse($logs);
     }
+
+    return view('admin.room.logs', ['logs' => $logs]);
+}
     public function getClasses()
     {
         // Ambil data coach yang sedang login
